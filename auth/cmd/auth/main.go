@@ -3,6 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/go-chi/chi"
+	chimiddle "github.com/go-chi/chi/middleware"
+
+	"github.com/medods-technical-assessment/internal/handlers"
 	"github.com/medods-technical-assessment/internal/http"
 	"github.com/medods-technical-assessment/internal/postgres"
 )
@@ -24,5 +28,16 @@ func main() {
 	h.AuthService = as
 
 	// start http server...
-	h.ListenAndServe()
+	var r *chi.Mux = chi.NewRouter()
+
+	r.Use(chimiddle.StripSlashes)
+	r.Use(chimiddle.Logger)
+	r.Route("/auth", func(router chi.Router) {
+		// router.Use(middleware.Authorization)
+
+		router.Get("/", handlers.GetUser)
+	})
+
+	// handlers.Handler(r)
+	h.ListenAndServe(r)
 }

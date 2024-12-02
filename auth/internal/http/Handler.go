@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi"
 	auth "github.com/medods-technical-assessment"
 )
 
@@ -11,10 +12,19 @@ type Handler struct {
 	AuthService auth.AuthService
 }
 
-func (h *Handler) ListenAndServe() {
+func (h *Handler) ListenAndServe(r *chi.Mux) {
 
-	log.Print("localhost:8080")
-	http.ListenAndServe("localhost:8080", h)
+	log.Print("Starting HTTP server at: http://localhost:8080")
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
+	}
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// handle request
