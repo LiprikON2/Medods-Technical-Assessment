@@ -1,10 +1,25 @@
 package auth
 
 type User struct {
-	ID       int    `json:"id"`
-	Email    string `json:"email"`
+	UserResponse
 	Password string `json:"password"`
 }
+
+type UserResponse struct {
+	ID    int    `json:"id"`
+	Email string `json:"email"`
+}
+
+func (u *User) ToResponse() UserResponse {
+	return UserResponse{
+		ID:    u.ID,
+		Email: u.Email,
+	}
+}
+
+// type UserParams struct {
+// 	UserID int
+// }
 
 type JWT struct {
 	ID      int    `json:"id"`
@@ -17,4 +32,16 @@ type AuthService interface {
 	// Users() ([]*User, error)
 	// CreateUser(u *User) error
 	// DeleteUser(id int) error
+}
+
+type AuthController interface {
+	User(id int) (*User, error)
+	// Users() ([]*User, error)
+	// CreateUser(u *User) error
+	// DeleteUser(id int) error
+}
+
+type Error struct {
+	Code    int
+	Message string
 }

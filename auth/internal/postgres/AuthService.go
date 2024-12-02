@@ -24,7 +24,8 @@ func (s *AuthService) User(id int) (*auth.User, error) {
 	// if row.Scan(&u.ID, &u.Email); err != nil {
 	// 	return nil, err
 	// }
-	return &u, nil
+	// return &u, nil
+	return &u, fmt.Errorf("user with id %v not found", id)
 }
 
 // User returns all users

@@ -21,6 +21,7 @@ Installing uninstalled (but imported) dependencies
 ### Structure
 
 Reference:
+- https://www.youtube.com/watch?v=8uiZC0l4Ajw
 - https://www.reddit.com/r/golang/comments/1310xxl/comment/jhymmry/
 - https://www.gobeyond.dev/standard-package-layout/
 

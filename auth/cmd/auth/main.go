@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/go-chi/chi"
 	chimiddle "github.com/go-chi/chi/middleware"
 
-	"github.com/medods-technical-assessment/internal/handlers"
 	"github.com/medods-technical-assessment/internal/http"
 	"github.com/medods-technical-assessment/internal/postgres"
 )
@@ -27,15 +27,33 @@ func main() {
 	var h http.Handler
 	h.AuthService = as
 
+	var c = postgres.AuthController{}
+
 	// start http server...
 	var r *chi.Mux = chi.NewRouter()
 
 	r.Use(chimiddle.StripSlashes)
+
+	// A good base middleware stack
+	r.Use(chimiddle.RequestID)
+	r.Use(chimiddle.RealIP)
 	r.Use(chimiddle.Logger)
-	r.Route("/auth", func(router chi.Router) {
+	r.Use(chimiddle.Recoverer)
+
+	// Set a timeout value on the request context (ctx), that will signal
+	// through ctx.Done() that the request has timed out and further
+	// processing should be stopped.
+	r.Use(chimiddle.Timeout(60 * time.Second))
+
+	r.Route("/auth", func(r chi.Router) {
 		// router.Use(middleware.Authorization)
 
-		router.Get("/", handlers.GetUser)
+		r.Route("/", func(r chi.Router) {
+			// r.Use(c.UserCtx)
+			r.Get("/{UserID}", c.GetUser)
+			// r.Put("/", updateArticle)                                       // PUT /articles/123
+			// r.Delete("/", deleteArticle)                                    // DELETE /articles/123
+		})
 	})
 
 	// handlers.Handler(r)
