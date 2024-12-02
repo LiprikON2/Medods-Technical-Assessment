@@ -24,6 +24,5 @@ func main() {
 	h.AuthService = as
 
 	// start http server...
-
-	// h.ServeHTTP()
+	h.ListenAndServe()
 }
