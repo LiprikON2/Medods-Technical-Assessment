@@ -1,9 +1,0 @@
-{
-  "version": "1",
-  "name": "Medods - Technical Assessment",
-  "type": "collection",
-  "ignore": [
-    "node_modules",
-    ".git"
-  ]
-}
