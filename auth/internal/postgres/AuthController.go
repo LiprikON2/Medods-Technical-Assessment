@@ -23,19 +23,6 @@ func NewAuthController(service *AuthService) *AuthController {
 
 func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 
-	// Query params
-	// var params = auth.UserParams{}
-	// var decoder *schema.Decoder = schema.NewDecoder()
-
-	// if err := decoder.Decode(&params, r.URL.Query()); err != nil {
-	// 	log.Print(err)
-	// 	// auth.InternalErrorHandler(w)
-	// 	http.Error(w, "User not found", http.StatusNotFound)
-	// 	return
-	// }
-
-	// log.Print("GetUser params", params)
-
 	userID := chi.URLParam(r, "UserID")
 	log.Printf("GetUser ID: %s", userID)
 

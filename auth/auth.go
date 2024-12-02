@@ -17,10 +17,6 @@ func (u *User) ToResponse() UserResponse {
 	}
 }
 
-// type UserParams struct {
-// 	UserID int
-// }
-
 type JWT struct {
 	ID      int    `json:"id"`
 	Access  string `json:"access"`

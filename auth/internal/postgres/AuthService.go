@@ -20,12 +20,12 @@ type AuthService struct {
 // User returns a user for a given id.
 func (s *AuthService) User(id int) (*auth.User, error) {
 	var u auth.User
-	// row := db.QueryRow(`SELECT id, email FROM users WHERE id = $1`, id)
-	// if row.Scan(&u.ID, &u.Email); err != nil {
+	// row := s.DB.QueryRow(`SELECT id, email FROM users WHERE id = $1`, id)
+	// if err := row.Scan(&u.ID, &u.Email); err != nil {
 	// 	return nil, err
 	// }
-	// return &u, nil
-	return &u, fmt.Errorf("user with id %v not found", id)
+	return &u, nil
+	// return &u, fmt.Errorf("user with id %v not found", id)
 }
 
 // User returns all users
@@ -48,7 +48,7 @@ func Open() (*sql.DB, error) {
 		dbname,
 		password,
 	)
-	log.Print(conn)
+	log.Print("Connecting to postgres database...\n", conn)
 
 	db, err := sql.Open("postgres", conn)
 	if err != nil {
