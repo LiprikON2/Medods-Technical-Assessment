@@ -45,6 +45,9 @@ type AuthController interface {
 	// DeleteUser(id int) error
 }
 
+// type Router interface {
+// }
+
 type Error struct {
 	Code    int
 	Message string

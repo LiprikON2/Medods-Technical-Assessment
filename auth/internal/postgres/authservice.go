@@ -17,6 +17,12 @@ type AuthService struct {
 	DB *sql.DB
 }
 
+func NewAuthService(db *sql.DB) *AuthService {
+	return &AuthService{
+		DB: db,
+	}
+}
+
 // User returns a user for a given id.
 func (s *AuthService) User(id int) (*auth.User, error) {
 	user := &auth.User{}
@@ -37,7 +43,7 @@ func (s *AuthService) User(id int) (*auth.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error fetching user with id %v: %w", id, err)
 	}
-	return user, nil
+	return user, err
 }
 
 // User returns all users

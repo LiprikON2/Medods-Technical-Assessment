@@ -1,4 +1,4 @@
-package postgres
+package chi
 
 import (
 	"encoding/json"
@@ -12,30 +12,28 @@ import (
 )
 
 type AuthController struct {
-	service *AuthService
+	service auth.AuthService
 }
 
-func NewAuthController(service *AuthService) *AuthController {
+func NewAuthController(service auth.AuthService) *AuthController {
 	return &AuthController{
 		service: service,
 	}
 }
 
-func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
+func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 
 	userID := chi.URLParam(r, "UserID")
 	log.Printf("GetUser ID: %s", userID)
 
 	id, err := strconv.Atoi(userID)
 	if err != nil {
-		log.Printf("Invalid user ID format: %v", err)
-		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format: %v", userID))
+		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
 		return
 	}
 	user, err := c.service.User(id)
 
 	if err != nil {
-		log.Printf("Error getting user: %v", err)
 		NotFoundErrorHandler(w, err)
 		return
 	}
