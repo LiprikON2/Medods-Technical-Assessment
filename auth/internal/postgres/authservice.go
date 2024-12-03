@@ -19,13 +19,25 @@ type AuthService struct {
 
 // User returns a user for a given id.
 func (s *AuthService) User(id int) (*auth.User, error) {
-	var u auth.User
-	// row := s.DB.QueryRow(`SELECT id, email FROM users WHERE id = $1`, id)
-	// if err := row.Scan(&u.ID, &u.Email); err != nil {
-	// 	return nil, err
-	// }
-	return &u, nil
-	// return &u, fmt.Errorf("user with id %v not found", id)
+	user := &auth.User{}
+	query := `
+        SELECT id, email, password
+        FROM users
+        WHERE id = $1`
+
+	err := s.DB.QueryRow(query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user with id %v not found: %w", id, err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user with id %v: %w", id, err)
+	}
+	return user, nil
 }
 
 // User returns all users
@@ -52,7 +64,7 @@ func Open() (*sql.DB, error) {
 
 	db, err := sql.Open("postgres", conn)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 	// db.AutoMigrate(&domain.Message{})
 

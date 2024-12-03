@@ -10,7 +10,7 @@ docker-compose up --build
 
 Installing uninstalled (but imported) dependencies
 ```bash
-(cd auth/ && go mod tidy)
+(cd auth && go mod tidy)
 ```
 
 ### Testing

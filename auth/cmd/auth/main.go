@@ -9,6 +9,7 @@ import (
 
 	"github.com/medods-technical-assessment/internal/http"
 	"github.com/medods-technical-assessment/internal/postgres"
+	tables "github.com/medods-technical-assessment/internal/postgres/tables"
 )
 
 func main() {
@@ -20,14 +21,24 @@ func main() {
 	}
 	defer db.Close()
 
+	// Check if credentials are valid
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create tables
+	if err := tables.CreateUsersTable(db); err != nil {
+		log.Fatal(err)
+	}
+
 	// Create services.
 	as := &postgres.AuthService{DB: db}
 
 	// Attach to HTTP handler.
-	var h http.Handler
-	h.AuthService = as
+	var h = http.NewHandler(as)
 
-	var c = postgres.AuthController{}
+	var c = postgres.NewAuthController(as)
 
 	// start http server...
 	var r *chi.Mux = chi.NewRouter()

@@ -32,7 +32,6 @@ func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format: %v", userID))
 		return
 	}
-
 	user, err := c.service.User(id)
 
 	if err != nil {

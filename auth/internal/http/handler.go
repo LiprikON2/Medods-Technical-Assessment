@@ -9,7 +9,13 @@ import (
 )
 
 type Handler struct {
-	AuthService auth.AuthService
+	service auth.AuthService
+}
+
+func NewHandler(service auth.AuthService) *Handler {
+	return &Handler{
+		service: service,
+	}
 }
 
 func (h *Handler) ListenAndServe(r *chi.Mux) {

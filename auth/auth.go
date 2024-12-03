@@ -2,14 +2,20 @@ package auth
 
 // Root package is for domain types
 
+// type User struct {
+// 	UserResponse
+// 	Password string `json:"password" db:"password"`
+// }
+
 type User struct {
-	UserResponse
-	Password string `json:"password"`
+	ID       int64  `db:"id"`
+	Email    string `db:"email"`
+	Password string `db:"password"`
 }
 
 type UserResponse struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	ID    int64  `json:"id" db:"id"`
+	Email string `json:"email" db:"email"`
 }
 
 func (u *User) ToResponse() UserResponse {
@@ -20,9 +26,9 @@ func (u *User) ToResponse() UserResponse {
 }
 
 type JWT struct {
-	ID      int    `json:"id"`
-	Access  string `json:"access"`
-	Refresh string `json:"refresh"`
+	ID      int64  `json:"id" db:"id"`
+	Access  string `json:"access" db:"access"`
+	Refresh string `json:"refresh" db:"refresh"`
 }
 
 type AuthService interface {
