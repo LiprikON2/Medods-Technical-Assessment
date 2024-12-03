@@ -1,5 +1,7 @@
 package auth
 
+// Root package is for domain types
+
 type User struct {
 	UserResponse
 	Password string `json:"password"`
