@@ -8,9 +8,10 @@ import (
 
 	// Autoloads `.env`
 	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	auth "github.com/medods-technical-assessment"
-	postgres "github.com/medods-technical-assessment/internal/postgres/tables"
+	"github.com/medods-technical-assessment/internal/common"
+	tables "github.com/medods-technical-assessment/internal/postgres/tables"
 )
 
 // AuthService represents a PostgreSQL implementation of auth.AuthService.
@@ -24,7 +25,6 @@ func NewAuthService(db *sql.DB) *AuthService {
 	}
 }
 
-// User returns a user for a given id.
 func (s *AuthService) User(id int) (*auth.User, error) {
 	user := &auth.User{}
 	query := `
@@ -47,7 +47,6 @@ func (s *AuthService) User(id int) (*auth.User, error) {
 	return user, err
 }
 
-// Users returns all users from the database.
 func (s *AuthService) Users() ([]*auth.User, error) {
 	users := make([]*auth.User, 0)
 	query := `
@@ -80,6 +79,38 @@ func (s *AuthService) Users() ([]*auth.User, error) {
 	return users, nil
 }
 
+func (s *AuthService) CreateUser(user *auth.User) (*auth.User, error) {
+	query := `
+        INSERT INTO users (email, password)
+        VALUES ($1, $2)
+        RETURNING id, email, password`
+
+	err := s.DB.QueryRow(
+		query,
+		user.Email,
+		user.Password,
+	).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+	)
+
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code {
+			case PgErrUniqueViolation:
+				if pqErr.Constraint == common.ConstraintUserEmailUnique {
+					return nil, common.ErrDuplicateEmail
+				}
+			}
+		}
+
+		return nil, fmt.Errorf("error creating user: %w", err)
+	}
+
+	return user, nil
+}
+
 func Open() (*sql.DB, error) {
 	host := os.Getenv("POSTGRES_HOST")
 	port := os.Getenv("POSTGRES_PORT")
@@ -100,10 +131,8 @@ func Open() (*sql.DB, error) {
 	if err != nil {
 		log.Panic(err)
 	}
-	// db.AutoMigrate(&domain.Message{})
-
 	// Create tables
-	if err := postgres.CreateUsersTable(db); err != nil {
+	if err := tables.CreateUsersTable(db); err != nil {
 		log.Fatal(err)
 	}
 

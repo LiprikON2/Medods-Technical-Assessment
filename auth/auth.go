@@ -1,23 +1,23 @@
 package auth
 
+import "net/http"
+
 // Root package with domain types
 type User struct {
-	UserDto
-	Password string `json:"password" db:"password"`
+	ID       int64  `json:"id" db:"id"`
+	Email    string `json:"email" db:"email"`
+	Password string `json:"-" db:"password"`
 }
 
-type UserDto struct {
-	ID    int64  `json:"id" db:"id"`
-	Email string `json:"email" db:"email"`
+type CreateUserDto struct {
+	Email    string `json:"email" db:"email" validate:"required,email,max=254"`
+	Password string `json:"password" db:"password" validate:"required,password,min=8"`
 }
 
-func (u *User) ToDto() UserDto {
-	return UserDto{
-		ID:    u.ID,
-		Email: u.Email,
-	}
-}
-
+// type UpdateUserDto struct {
+// 	// But make email and password optional
+// 	CreateUserDto
+// }
 type JWT struct {
 	ID      int64  `json:"id" db:"id"`
 	Access  string `json:"access" db:"access"`
@@ -27,21 +27,29 @@ type JWT struct {
 type AuthService interface {
 	User(id int) (*User, error)
 	Users() ([]*User, error)
-	// CreateUser(u *User) error
+	CreateUser(u *User) (*User, error)
+	// UpdateUser(u *User) (*User, error)
 	// DeleteUser(id int) error
 }
 
 type AuthController interface {
-	User(id int) (*User, error)
-	Users() ([]*User, error)
-	// CreateUser(u *User) error
-	// DeleteUser(id int) error
+	User(w http.ResponseWriter, r *http.Request)
+	Users(w http.ResponseWriter, r *http.Request)
+	CreateUser(w http.ResponseWriter, r *http.Request)
+	// UpdateUser(w http.ResponseWriter, r *http.Request)
+	// DeleteUser(w http.ResponseWriter, r *http.Request)
 }
 
-// type Router interface {
-// }
+type ValidationService interface {
+	ValidateCreateUser(input CreateUserDto) []ValidationError
+}
 
-type Error struct {
-	Code    int
-	Message string
+type RequestError struct {
+	Code    int         `json:"code"`
+	Message interface{} `json:"message"`
+}
+
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }

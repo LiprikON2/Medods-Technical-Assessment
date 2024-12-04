@@ -9,6 +9,7 @@ import (
 
 	"github.com/medods-technical-assessment/internal/chi"
 	"github.com/medods-technical-assessment/internal/postgres"
+	"github.com/medods-technical-assessment/internal/validator"
 )
 
 func main() {
@@ -28,9 +29,10 @@ func main() {
 
 	// Create services.
 	as := postgres.NewAuthService(db)
+	vs := validator.NewValidationService()
 	r := chi.NewChiRouter()
 
-	ac := chi.NewAuthController(as)
+	ac := chi.NewAuthController(as, vs)
 
 	r.Use(middleware.StripSlashes)
 
@@ -46,14 +48,14 @@ func main() {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Route("/auth", func(r chi.Router) {
-		// router.Use(middleware.Authorization)
-
 		r.Route("/", func(r chi.Router) {
-			// r.Use(c.UserCtx)
+			// r.Use(middleware.Authorization)
 			r.Get("/", ac.Users)
+			r.Post("/", ac.CreateUser)
 			r.Get("/{UserID}", ac.User)
-			// r.Put("/", updateArticle)                                       // PUT /articles/123
-			// r.Delete("/", deleteArticle)                                    // DELETE /articles/123
+			r.Post("/", ac.CreateUser)
+			// r.Patch("/", ac.UpdateUser)
+			// r.Delete("/", ac.DeleteUser)
 		})
 	})
 

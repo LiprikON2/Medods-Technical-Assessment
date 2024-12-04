@@ -2,23 +2,27 @@ package chi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi"
+
 	auth "github.com/medods-technical-assessment"
-	"github.com/medods-technical-assessment/pkg/utils"
+	"github.com/medods-technical-assessment/internal/common"
 )
 
 type AuthController struct {
-	service auth.AuthService
+	service           auth.AuthService
+	validationService auth.ValidationService
 }
 
-func NewAuthController(service auth.AuthService) *AuthController {
+func NewAuthController(service auth.AuthService, validationService auth.ValidationService) *AuthController {
 	return &AuthController{
-		service: service,
+		service:           service,
+		validationService: validationService,
 	}
 }
 
@@ -45,11 +49,8 @@ func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 
-	userDto := user.ToDto()
-
-	if err := encoder.Encode(userDto); err != nil {
-		log.Print(err)
-		InternalErrorHandler(w)
+	if err := encoder.Encode(user); err != nil {
+		InternalErrorHandler(w, err)
 		return
 	}
 }
@@ -57,10 +58,6 @@ func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 func (c *AuthController) Users(w http.ResponseWriter, r *http.Request) {
 
 	users, err := c.service.Users()
-
-	usersDto := utils.MapSlice(users, func(user *auth.User) auth.UserDto {
-		return user.ToDto()
-	})
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -73,27 +70,81 @@ func (c *AuthController) Users(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 
-	if err := encoder.Encode(usersDto); err != nil {
-		log.Print(err)
-		InternalErrorHandler(w)
+	if err := encoder.Encode(users); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
+func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	var userInput auth.CreateUserDto
+	if err := decoder.Decode(&userInput); err != nil {
+		BadRequestErrorHandler(w, err)
+		return
+	}
+
+	// Validate input
+	if errors := c.validationService.ValidateCreateUser(userInput); len(errors) > 0 {
+		ValidationErrorHandler(w, errors)
+		return
+	}
+
+	user := &auth.User{
+		Email: userInput.Email,
+		// TODO hash
+		Password: userInput.Password,
+	}
+
+	createdUser, err := c.service.CreateUser(user)
+	if err != nil {
+		if errors.Is(err, common.ErrDuplicateEmail) {
+			ConflictErrorHandler(w, err)
+			return
+		}
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(createdUser); err != nil {
+		InternalErrorHandler(w, err)
 		return
 	}
 }
 
 var (
+	ValidationErrorHandler = func(w http.ResponseWriter, errors []auth.ValidationError) {
+		message := map[string]interface{}{
+			"errors": errors,
+		}
+
+		writeError(w, message, http.StatusUnprocessableEntity)
+	}
+	ConflictErrorHandler = func(w http.ResponseWriter, err error) {
+		writeError(w, err.Error(), http.StatusConflict)
+	}
 	BadRequestErrorHandler = func(w http.ResponseWriter, err error) {
 		writeError(w, err.Error(), http.StatusBadRequest)
 	}
 	NotFoundErrorHandler = func(w http.ResponseWriter, err error) {
 		writeError(w, err.Error(), http.StatusNotFound)
 	}
-	InternalErrorHandler = func(w http.ResponseWriter) {
+	InternalErrorHandler = func(w http.ResponseWriter, err error) {
+		log.Print(err)
 		writeError(w, "An Unexpected Error Occured.", http.StatusInternalServerError)
 	}
 )
 
-func writeError(w http.ResponseWriter, message string, statusCode int) {
-	resp := auth.Error{
+func writeError(w http.ResponseWriter, message interface{}, statusCode int) {
+	resp := auth.RequestError{
 		Code:    statusCode,
 		Message: message,
 	}
