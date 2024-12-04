@@ -9,7 +9,6 @@ import (
 
 	"github.com/medods-technical-assessment/internal/chi"
 	"github.com/medods-technical-assessment/internal/postgres"
-	tables "github.com/medods-technical-assessment/internal/postgres/tables"
 )
 
 func main() {
@@ -24,11 +23,6 @@ func main() {
 	// Check if credentials are valid
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create tables
-	if err := tables.CreateUsersTable(db); err != nil {
 		log.Fatal(err)
 	}
 
@@ -56,6 +50,7 @@ func main() {
 
 		r.Route("/", func(r chi.Router) {
 			// r.Use(c.UserCtx)
+			r.Get("/", ac.Users)
 			r.Get("/{UserID}", ac.User)
 			// r.Put("/", updateArticle)                                       // PUT /articles/123
 			// r.Delete("/", deleteArticle)                                    // DELETE /articles/123

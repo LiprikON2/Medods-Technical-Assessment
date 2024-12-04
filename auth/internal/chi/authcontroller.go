@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	auth "github.com/medods-technical-assessment"
+	"github.com/medods-technical-assessment/pkg/utils"
 )
 
 type AuthController struct {
@@ -44,12 +45,39 @@ func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 
-	if err := encoder.Encode(user.ToResponse()); err != nil {
+	userDto := user.ToDto()
+
+	if err := encoder.Encode(userDto); err != nil {
 		log.Print(err)
 		InternalErrorHandler(w)
 		return
 	}
+}
 
+func (c *AuthController) Users(w http.ResponseWriter, r *http.Request) {
+
+	users, err := c.service.Users()
+
+	usersDto := utils.MapSlice(users, func(user *auth.User) auth.UserDto {
+		return user.ToDto()
+	})
+
+	if err != nil {
+		NotFoundErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+
+	if err := encoder.Encode(usersDto); err != nil {
+		log.Print(err)
+		InternalErrorHandler(w)
+		return
+	}
 }
 
 var (
@@ -64,14 +92,14 @@ var (
 	}
 )
 
-func writeError(w http.ResponseWriter, message string, code int) {
+func writeError(w http.ResponseWriter, message string, statusCode int) {
 	resp := auth.Error{
-		Code:    code,
+		Code:    statusCode,
 		Message: message,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
+	w.WriteHeader(statusCode)
 
 	encoder := json.NewEncoder(w)
 

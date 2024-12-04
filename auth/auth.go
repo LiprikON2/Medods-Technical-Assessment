@@ -1,25 +1,18 @@
 package auth
 
-// Root package is for domain types
-
-// type User struct {
-// 	UserResponse
-// 	Password string `json:"password" db:"password"`
-// }
-
+// Root package with domain types
 type User struct {
-	ID       int64  `db:"id"`
-	Email    string `db:"email"`
-	Password string `db:"password"`
+	UserDto
+	Password string `json:"password" db:"password"`
 }
 
-type UserResponse struct {
+type UserDto struct {
 	ID    int64  `json:"id" db:"id"`
 	Email string `json:"email" db:"email"`
 }
 
-func (u *User) ToResponse() UserResponse {
-	return UserResponse{
+func (u *User) ToDto() UserDto {
+	return UserDto{
 		ID:    u.ID,
 		Email: u.Email,
 	}
@@ -33,14 +26,14 @@ type JWT struct {
 
 type AuthService interface {
 	User(id int) (*User, error)
-	// Users() ([]*User, error)
+	Users() ([]*User, error)
 	// CreateUser(u *User) error
 	// DeleteUser(id int) error
 }
 
 type AuthController interface {
 	User(id int) (*User, error)
-	// Users() ([]*User, error)
+	Users() ([]*User, error)
 	// CreateUser(u *User) error
 	// DeleteUser(id int) error
 }

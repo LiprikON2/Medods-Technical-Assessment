@@ -10,6 +10,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
 	auth "github.com/medods-technical-assessment"
+	postgres "github.com/medods-technical-assessment/internal/postgres/tables"
 )
 
 // AuthService represents a PostgreSQL implementation of auth.AuthService.
@@ -46,11 +47,38 @@ func (s *AuthService) User(id int) (*auth.User, error) {
 	return user, err
 }
 
-// User returns all users
-// func (s *AuthService) Users(id int) (*[]auth.User, error) {
-// 	var u auth.User
-// 	return &u, nil
-// }
+// Users returns all users from the database.
+func (s *AuthService) Users() ([]*auth.User, error) {
+	users := make([]*auth.User, 0)
+	query := `
+        SELECT id, email, password 
+        FROM users`
+
+	rows, err := s.DB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching users: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		user := &auth.User{}
+		err := rows.Scan(
+			&user.ID,
+			&user.Email,
+			&user.Password,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning user: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating users: %w", err)
+	}
+
+	return users, nil
+}
 
 func Open() (*sql.DB, error) {
 	host := os.Getenv("POSTGRES_HOST")
@@ -73,6 +101,11 @@ func Open() (*sql.DB, error) {
 		log.Panic(err)
 	}
 	// db.AutoMigrate(&domain.Message{})
+
+	// Create tables
+	if err := postgres.CreateUsersTable(db); err != nil {
+		log.Fatal(err)
+	}
 
 	return db, err
 
