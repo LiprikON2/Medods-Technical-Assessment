@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
 )
@@ -15,23 +13,30 @@ import (
 type AuthController struct {
 	service           auth.AuthService
 	validationService auth.ValidationService
+	cryptoService     auth.CryptoService
+	uuidService       auth.UUIDService
 }
 
-func NewAuthController(service auth.AuthService, validationService auth.ValidationService) *AuthController {
+func NewAuthController(service auth.AuthService, validationService auth.ValidationService, cryptoService auth.CryptoService, uuidService auth.UUIDService) *AuthController {
 	return &AuthController{
 		service:           service,
 		validationService: validationService,
+		cryptoService:     cryptoService,
+		uuidService:       uuidService,
 	}
 }
 
-func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
+// ref: https://stackoverflow.com/a/68100270
+type CtxUUIDKey struct{}
 
-	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
+
+	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
 	if !ok {
 		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
 	}
-	user, err := c.service.User(userUUID)
+	user, err := c.service.GetUser(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -50,9 +55,9 @@ func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *AuthController) Users(w http.ResponseWriter, r *http.Request) {
+func (c *AuthController) GetUsers(w http.ResponseWriter, r *http.Request) {
 
-	users, err := c.service.Users()
+	users, err := c.service.GetUsers()
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -89,10 +94,9 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &auth.User{
-		UUID:  uuid.New(),
-		Email: userInput.Email,
-		// TODO hash
-		Password: userInput.Password,
+		UUID:     c.uuidService.New(),
+		Email:    userInput.Email,
+		Password: c.cryptoService.HashPassword(userInput.Password),
 	}
 
 	createdUser, err := c.service.CreateUser(user)
@@ -117,12 +121,12 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
 	if !ok {
 		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
 	}
-	user, err := c.service.User(userUUID)
+	user, err := c.service.GetUser(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -147,9 +151,8 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInput.Email != "" {
 		user.Email = userInput.Email
 	}
-	// TODO hash
 	if userInput.Password != "" {
-		user.Password = userInput.Password
+		user.Password = c.cryptoService.HashPassword(userInput.Password)
 	}
 
 	updatedUser, err := c.service.UpdateUser(user)
@@ -175,7 +178,7 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
-	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
 	if !ok {
 		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
@@ -189,4 +192,37 @@ func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	var loginInput auth.Login
+	if err := decoder.Decode(&loginInput); err != nil {
+		BadRequestErrorHandler(w, err)
+		return
+	}
+	user, err := c.service.GetUserByEmail(loginInput.Email)
+
+	if err != nil {
+		NotFoundErrorHandler(w, err)
+		return
+	}
+
+	if err = c.cryptoService.ComparePasswords(user.Password, loginInput.Password); err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(user); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
 }

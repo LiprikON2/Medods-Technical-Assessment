@@ -7,7 +7,6 @@ import (
 	"os"
 
 	// Autoloads `.env`
-	"github.com/google/uuid"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/lib/pq"
 	auth "github.com/medods-technical-assessment"
@@ -55,7 +54,7 @@ func Open() (*sql.DB, error) {
 
 }
 
-func (s *AuthService) User(uuid uuid.UUID) (*auth.User, error) {
+func (s *AuthService) GetUser(uuid auth.UUID) (*auth.User, error) {
 	user := &auth.User{}
 	query := `
         SELECT uuid, email, password
@@ -77,7 +76,29 @@ func (s *AuthService) User(uuid uuid.UUID) (*auth.User, error) {
 	return user, err
 }
 
-func (s *AuthService) Users() ([]*auth.User, error) {
+func (s *AuthService) GetUserByEmail(email string) (*auth.User, error) {
+	user := &auth.User{}
+	query := `
+        SELECT uuid, email, password
+        FROM users
+        WHERE email = $1`
+
+	err := s.DB.QueryRow(query, email).Scan(
+		&user.UUID,
+		&user.Email,
+		&user.Password,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user with email %v not found: %w", email, err)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user with email %v: %w", email, err)
+	}
+	return user, err
+}
+
+func (s *AuthService) GetUsers() ([]*auth.User, error) {
 	users := make([]*auth.User, 0)
 	query := `
         SELECT uuid, email, password 
@@ -177,7 +198,7 @@ func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
 	return user, nil
 }
 
-func (s *AuthService) DeleteUser(uuid uuid.UUID) error {
+func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 	query := `
         DELETE FROM users
 		WHERE uuid = $1`

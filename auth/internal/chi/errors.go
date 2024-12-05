@@ -25,6 +25,9 @@ var (
 	NotFoundErrorHandler = func(w http.ResponseWriter, err error) {
 		writeError(w, err.Error(), http.StatusNotFound)
 	}
+	ForbiddenErrorHandler = func(w http.ResponseWriter, err error) {
+		writeError(w, err.Error(), http.StatusForbidden)
+	}
 	InternalErrorHandler = func(w http.ResponseWriter, err error) {
 		log.Print(err)
 		writeError(w, "An Unexpected Error Occured.", http.StatusInternalServerError)

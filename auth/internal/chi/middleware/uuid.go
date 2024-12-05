@@ -1,4 +1,4 @@
-package chi
+package uuid
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
-	chierrors "github.com/medods-technical-assessment/internal/chi"
+	internalchi "github.com/medods-technical-assessment/internal/chi"
 )
 
 func ValidateUUIDParam(paramName string) func(http.Handler) http.Handler {
@@ -16,10 +16,10 @@ func ValidateUUIDParam(paramName string) func(http.Handler) http.Handler {
 			paramValue := chi.URLParam(r, paramName)
 			parsedUUID, err := uuid.Parse(paramValue)
 			if err != nil {
-				chierrors.BadRequestErrorHandler(w, fmt.Errorf("invalid UUID format: %w", err))
+				internalchi.BadRequestErrorHandler(w, fmt.Errorf("invalid UUID format: %w", err))
 				return
 			}
-			ctx := context.WithValue(r.Context(), paramName, parsedUUID)
+			ctx := context.WithValue(r.Context(), internalchi.CtxUUIDKey{}, parsedUUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
