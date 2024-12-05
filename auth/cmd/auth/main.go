@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 
 	"github.com/medods-technical-assessment/internal/chi"
+	chimiddleware "github.com/medods-technical-assessment/internal/chi/middleware"
 	"github.com/medods-technical-assessment/internal/postgres"
 	"github.com/medods-technical-assessment/internal/validator"
 )
@@ -51,9 +52,12 @@ func main() {
 			// r.Use(middleware.Authorization)
 			r.Get("/", ac.Users)
 			r.Post("/", ac.CreateUser)
-			r.Get("/{UserID}", ac.User)
-			r.Patch("/{UserID}", ac.UpdateUser)
-			r.Delete("/{UserID}", ac.DeleteUser)
+			r.Group(func(r chi.Router) {
+				r.Use(chimiddleware.ValidateUUIDParam("UserUUID"))
+				r.Get("/{UserUUID}", ac.User)
+				r.Patch("/{UserUUID}", ac.UpdateUser)
+				r.Delete("/{UserUUID}", ac.DeleteUser)
+			})
 		})
 	})
 

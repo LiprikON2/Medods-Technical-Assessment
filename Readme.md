@@ -2,12 +2,12 @@
 
 ### Running
 
-Set up environment variables
+1. Set up environment variables
 ```bash
 cp .env.example .env
 ```
 
-Run `docker-compose`
+2. Run `docker-compose`
 ```
 docker-compose up --build
 ```

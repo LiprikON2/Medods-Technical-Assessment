@@ -1,12 +1,16 @@
 package auth
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/google/uuid"
+)
 
 // Root package with domain types
 type User struct {
-	ID       int64  `json:"id" db:"id"`
-	Email    string `json:"email" db:"email"`
-	Password string `json:"-" db:"password"`
+	UUID     uuid.UUID `json:"uuid" db:"uuid"`
+	Email    string    `json:"email" db:"email"`
+	Password string    `json:"-" db:"password"`
 }
 
 type CreateUserDto struct {
@@ -26,11 +30,11 @@ type JWT struct {
 }
 
 type AuthService interface {
-	User(id int) (*User, error)
+	User(uuid uuid.UUID) (*User, error)
 	Users() ([]*User, error)
 	CreateUser(u *User) (*User, error)
 	UpdateUser(u *User) (*User, error)
-	DeleteUser(id int) error
+	DeleteUser(uuid uuid.UUID) error
 }
 
 type AuthController interface {

@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"strconv"
 
-	"github.com/go-chi/chi"
+	"github.com/google/uuid"
 
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
@@ -28,14 +26,12 @@ func NewAuthController(service auth.AuthService, validationService auth.Validati
 
 func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 
-	userID := chi.URLParam(r, "UserID")
-
-	id, err := strconv.Atoi(userID)
-	if err != nil {
-		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
+	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+	if !ok {
+		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
 	}
-	user, err := c.service.User(id)
+	user, err := c.service.User(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -93,6 +89,7 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &auth.User{
+		UUID:  uuid.New(),
 		Email: userInput.Email,
 		// TODO hash
 		Password: userInput.Password,
@@ -120,14 +117,12 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	userID := chi.URLParam(r, "UserID")
-
-	id, err := strconv.Atoi(userID)
-	if err != nil {
-		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
+	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+	if !ok {
+		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
 	}
-	user, err := c.service.User(id)
+	user, err := c.service.User(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -178,39 +173,14 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var (
-	ValidationErrorHandler = func(w http.ResponseWriter, errors []auth.ValidationError) {
-		message := map[string]any{
-			"errors": errors,
-		}
-
-		writeError(w, message, http.StatusUnprocessableEntity)
-	}
-	ConflictErrorHandler = func(w http.ResponseWriter, err error) {
-		writeError(w, err.Error(), http.StatusConflict)
-	}
-	BadRequestErrorHandler = func(w http.ResponseWriter, err error) {
-		writeError(w, err.Error(), http.StatusBadRequest)
-	}
-	NotFoundErrorHandler = func(w http.ResponseWriter, err error) {
-		writeError(w, err.Error(), http.StatusNotFound)
-	}
-	InternalErrorHandler = func(w http.ResponseWriter, err error) {
-		log.Print(err)
-		writeError(w, "An Unexpected Error Occured.", http.StatusInternalServerError)
-	}
-)
-
 func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
-	userID := chi.URLParam(r, "UserID")
-
-	id, err := strconv.Atoi(userID)
-	if err != nil {
-		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
+	userUUID, ok := r.Context().Value("UserUUID").(uuid.UUID)
+	if !ok {
+		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
 		return
 	}
-	err = c.service.DeleteUser(id)
+	err := c.service.DeleteUser(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
@@ -219,19 +189,4 @@ func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func writeError(w http.ResponseWriter, message any, statusCode int) {
-	resp := auth.RequestError{
-		Code:    statusCode,
-		Message: message,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	encoder := json.NewEncoder(w)
-
-	encoder.SetIndent("", "  ")
-	encoder.Encode(resp)
 }

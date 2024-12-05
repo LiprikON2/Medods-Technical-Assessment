@@ -9,17 +9,15 @@ import (
 )
 
 func CreateUsersTable(db *sql.DB) error {
-	query := fmt.Sprintf(`
+	query := `
         CREATE TABLE IF NOT EXISTS users (
-            id BIGSERIAL PRIMARY KEY,
+            uuid UUID PRIMARY KEY,
             email TEXT NOT NULL,
             password TEXT NOT NULL,
             CONSTRAINT %s UNIQUE (email)
-        );
-        
-        CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
-    `, common.ConstraintUserEmailUnique)
+        );`
 
-	_, err := db.Exec(query)
+	_, err := db.Exec(fmt.Sprintf(query, common.ConstraintUserEmailUnique))
+
 	return err
 }

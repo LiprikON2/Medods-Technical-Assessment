@@ -7,6 +7,7 @@ import (
 	"os"
 
 	// Autoloads `.env`
+	"github.com/google/uuid"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/lib/pq"
 	auth "github.com/medods-technical-assessment"
@@ -54,24 +55,24 @@ func Open() (*sql.DB, error) {
 
 }
 
-func (s *AuthService) User(id int) (*auth.User, error) {
+func (s *AuthService) User(uuid uuid.UUID) (*auth.User, error) {
 	user := &auth.User{}
 	query := `
-        SELECT id, email, password
+        SELECT uuid, email, password
         FROM users
-        WHERE id = $1`
+        WHERE uuid = $1`
 
-	err := s.DB.QueryRow(query, id).Scan(
-		&user.ID,
+	err := s.DB.QueryRow(query, uuid).Scan(
+		&user.UUID,
 		&user.Email,
 		&user.Password,
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user with id %v not found: %w", id, err)
+		return nil, fmt.Errorf("user with id %v not found: %w", uuid, err)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error fetching user with id %v: %w", id, err)
+		return nil, fmt.Errorf("error fetching user with id %v: %w", uuid, err)
 	}
 	return user, err
 }
@@ -79,7 +80,7 @@ func (s *AuthService) User(id int) (*auth.User, error) {
 func (s *AuthService) Users() ([]*auth.User, error) {
 	users := make([]*auth.User, 0)
 	query := `
-        SELECT id, email, password 
+        SELECT uuid, email, password 
         FROM users`
 
 	rows, err := s.DB.Query(query)
@@ -91,7 +92,7 @@ func (s *AuthService) Users() ([]*auth.User, error) {
 	for rows.Next() {
 		user := &auth.User{}
 		err := rows.Scan(
-			&user.ID,
+			&user.UUID,
 			&user.Email,
 			&user.Password,
 		)
@@ -110,16 +111,17 @@ func (s *AuthService) Users() ([]*auth.User, error) {
 
 func (s *AuthService) CreateUser(user *auth.User) (*auth.User, error) {
 	query := `
-        INSERT INTO users (email, password)
-        VALUES ($1, $2)
-        RETURNING id, email, password`
+        INSERT INTO users (uuid, email, password)
+        VALUES ($1, $2, $3)
+        RETURNING uuid, email, password`
 
 	err := s.DB.QueryRow(
 		query,
+		user.UUID,
 		user.Email,
 		user.Password,
 	).Scan(
-		&user.ID,
+		&user.UUID,
 		&user.Email,
 		&user.Password,
 	)
@@ -145,16 +147,16 @@ func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
         UPDATE users
 		SET email = $2,
 			password = $3
-		WHERE id = $1
-		RETURNING id, email, password`
+		WHERE uuid = $1
+		RETURNING uuid, email, password`
 
 	err := s.DB.QueryRow(
 		query,
-		user.ID,
+		user.UUID,
 		user.Email,
 		user.Password,
 	).Scan(
-		&user.ID,
+		&user.UUID,
 		&user.Email,
 		&user.Password,
 	)
@@ -169,21 +171,21 @@ func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
 			}
 		}
 
-		return nil, fmt.Errorf("error updating user with id %v: %w", user.ID, err)
+		return nil, fmt.Errorf("error updating user with id %v: %w", user.UUID, err)
 	}
 
 	return user, nil
 }
 
-func (s *AuthService) DeleteUser(id int) error {
+func (s *AuthService) DeleteUser(uuid uuid.UUID) error {
 	query := `
         DELETE FROM users
-		WHERE id = $1`
+		WHERE uuid = $1`
 
-	result, err := s.DB.Exec(query, id)
+	result, err := s.DB.Exec(query, uuid)
 
 	if err != nil {
-		return fmt.Errorf("error deleting user with id %v: %w", id, err)
+		return fmt.Errorf("error deleting user with id %v: %w", uuid, err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
@@ -191,7 +193,7 @@ func (s *AuthService) DeleteUser(id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("error deleting user with id %v: user not found", id)
+		return fmt.Errorf("error deleting user with id %v: user not found", uuid)
 	}
 	return err
 }
