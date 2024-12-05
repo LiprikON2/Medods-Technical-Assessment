@@ -20,6 +20,7 @@ type Router interface {
 	MethodFunc(method, pattern string, h http.HandlerFunc)
 	Get(pattern string, h http.HandlerFunc)
 	Post(pattern string, h http.HandlerFunc)
+	Patch(pattern string, h http.HandlerFunc)
 	Put(pattern string, h http.HandlerFunc)
 	Delete(pattern string, h http.HandlerFunc)
 }

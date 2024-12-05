@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-
 	// Connect to database.
 	db, err := postgres.Open()
 	if err != nil {
@@ -53,9 +52,8 @@ func main() {
 			r.Get("/", ac.Users)
 			r.Post("/", ac.CreateUser)
 			r.Get("/{UserID}", ac.User)
-			r.Post("/", ac.CreateUser)
-			// r.Patch("/", ac.UpdateUser)
-			// r.Delete("/", ac.DeleteUser)
+			r.Patch("/{UserID}", ac.UpdateUser)
+			// r.Delete("/{UserID}", ac.DeleteUser)
 		})
 	})
 

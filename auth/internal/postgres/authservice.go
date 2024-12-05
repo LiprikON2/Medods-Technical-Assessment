@@ -111,6 +111,41 @@ func (s *AuthService) CreateUser(user *auth.User) (*auth.User, error) {
 	return user, nil
 }
 
+func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
+	query := `
+        UPDATE users
+		SET email = $2,
+			password = $3
+		WHERE id = $1
+		RETURNING id, email, password`
+
+	err := s.DB.QueryRow(
+		query,
+		user.ID,
+		user.Email,
+		user.Password,
+	).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+	)
+
+	if err != nil {
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code {
+			case PgErrUniqueViolation:
+				if pqErr.Constraint == common.ConstraintUserEmailUnique {
+					return nil, common.ErrDuplicateEmail
+				}
+			}
+		}
+
+		return nil, fmt.Errorf("error creating user: %w", err)
+	}
+
+	return user, nil
+}
+
 func Open() (*sql.DB, error) {
 	host := os.Getenv("POSTGRES_HOST")
 	port := os.Getenv("POSTGRES_PORT")

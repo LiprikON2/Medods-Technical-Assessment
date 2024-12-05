@@ -29,7 +29,6 @@ func NewAuthController(service auth.AuthService, validationService auth.Validati
 func (c *AuthController) User(w http.ResponseWriter, r *http.Request) {
 
 	userID := chi.URLParam(r, "UserID")
-	log.Printf("GetUser ID: %s", userID)
 
 	id, err := strconv.Atoi(userID)
 	if err != nil {
@@ -88,7 +87,7 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate input
-	if errors := c.validationService.ValidateCreateUser(userInput); len(errors) > 0 {
+	if errors := c.validationService.ValidateUserInput(userInput); len(errors) > 0 {
 		ValidationErrorHandler(w, errors)
 		return
 	}
@@ -120,9 +119,68 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "UserID")
+
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
+		return
+	}
+	user, err := c.service.User(id)
+
+	if err != nil {
+		NotFoundErrorHandler(w, err)
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	var userInput auth.UpdateUserDto
+	if err := decoder.Decode(&userInput); err != nil {
+		BadRequestErrorHandler(w, err)
+		return
+	}
+
+	// Validate input
+	if errors := c.validationService.ValidateUserInput(userInput); len(errors) > 0 {
+		ValidationErrorHandler(w, errors)
+		return
+	}
+
+	if userInput.Email != "" {
+		user.Email = userInput.Email
+	}
+	// TODO hash
+	if userInput.Password != "" {
+		user.Password = userInput.Password
+	}
+
+	updatedUser, err := c.service.UpdateUser(user)
+	if err != nil {
+		if errors.Is(err, common.ErrDuplicateEmail) {
+			ConflictErrorHandler(w, err)
+			return
+		}
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(updatedUser); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
 var (
 	ValidationErrorHandler = func(w http.ResponseWriter, errors []auth.ValidationError) {
-		message := map[string]interface{}{
+		message := map[string]any{
 			"errors": errors,
 		}
 
@@ -143,7 +201,7 @@ var (
 	}
 )
 
-func writeError(w http.ResponseWriter, message interface{}, statusCode int) {
+func writeError(w http.ResponseWriter, message any, statusCode int) {
 	resp := auth.RequestError{
 		Code:    statusCode,
 		Message: message,

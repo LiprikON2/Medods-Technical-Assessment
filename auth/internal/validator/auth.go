@@ -23,7 +23,7 @@ func NewValidationService() *ValidationService {
 func InitValidator() *validator.Validate {
 	validate := validator.New()
 
-	// Register function to return json tags in field validation
+	// Register function to return json tags in field validation (e.g. `err.Field()`)
 	// ref: https://github.com/go-playground/validator/issues/258#issuecomment-257281334
 	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
 		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
@@ -64,7 +64,7 @@ func isValidPassword(fl validator.FieldLevel) bool {
 	return hasUpper && hasLower && hasNumber && hasSpecial
 }
 
-func (s *ValidationService) ValidateCreateUser(input auth.CreateUserDto) []auth.ValidationError {
+func (s *ValidationService) ValidateUserInput(input any) []auth.ValidationError {
 	var errors []auth.ValidationError
 
 	err := s.validate.Struct(input)
