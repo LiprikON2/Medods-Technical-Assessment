@@ -16,14 +16,14 @@ func main() {
 	// Connect to database.
 	db, err := postgres.Open()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer db.Close()
 
 	// Check if credentials are valid
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// Create services.
@@ -53,7 +53,7 @@ func main() {
 			r.Post("/", ac.CreateUser)
 			r.Get("/{UserID}", ac.User)
 			r.Patch("/{UserID}", ac.UpdateUser)
-			// r.Delete("/{UserID}", ac.DeleteUser)
+			r.Delete("/{UserID}", ac.DeleteUser)
 		})
 	})
 
@@ -66,7 +66,7 @@ func main() {
 	}
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 }

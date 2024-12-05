@@ -2,6 +2,12 @@
 
 ### Running
 
+Set up environment variables
+```bash
+cp .env.example .env
+```
+
+Run `docker-compose`
 ```
 docker-compose up --build
 ```

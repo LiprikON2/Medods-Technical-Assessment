@@ -30,7 +30,7 @@ type AuthService interface {
 	Users() ([]*User, error)
 	CreateUser(u *User) (*User, error)
 	UpdateUser(u *User) (*User, error)
-	// DeleteUser(id int) error
+	DeleteUser(id int) error
 }
 
 type AuthController interface {
@@ -38,7 +38,7 @@ type AuthController interface {
 	Users(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	UpdateUser(w http.ResponseWriter, r *http.Request)
-	// DeleteUser(w http.ResponseWriter, r *http.Request)
+	DeleteUser(w http.ResponseWriter, r *http.Request)
 }
 
 type ValidationService interface {

@@ -25,6 +25,35 @@ func NewAuthService(db *sql.DB) *AuthService {
 	}
 }
 
+func Open() (*sql.DB, error) {
+	host := os.Getenv("POSTGRES_HOST")
+	port := os.Getenv("POSTGRES_PORT")
+	dbname := os.Getenv("POSTGRES_DATABASE")
+	user := os.Getenv("POSTGRES_USER")
+	password := os.Getenv("POSTGRES_PASSWORD")
+
+	conn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
+		host,
+		port,
+		user,
+		dbname,
+		password,
+	)
+	log.Print("Connecting to postgres database...\n", conn)
+
+	db, err := sql.Open("postgres", conn)
+	if err != nil {
+		log.Panic(err)
+	}
+	// Create tables
+	if err := tables.CreateUsersTable(db); err != nil {
+		log.Panic(err)
+	}
+
+	return db, err
+
+}
+
 func (s *AuthService) User(id int) (*auth.User, error) {
 	user := &auth.User{}
 	query := `
@@ -140,37 +169,29 @@ func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
 			}
 		}
 
-		return nil, fmt.Errorf("error creating user: %w", err)
+		return nil, fmt.Errorf("error updating user with id %v: %w", user.ID, err)
 	}
 
 	return user, nil
 }
 
-func Open() (*sql.DB, error) {
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	dbname := os.Getenv("POSTGRES_DATABASE")
-	user := os.Getenv("POSTGRES_USER")
-	password := os.Getenv("POSTGRES_PASSWORD")
+func (s *AuthService) DeleteUser(id int) error {
+	query := `
+        DELETE FROM users
+		WHERE id = $1`
 
-	conn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
-		host,
-		port,
-		user,
-		dbname,
-		password,
-	)
-	log.Print("Connecting to postgres database...\n", conn)
+	result, err := s.DB.Exec(query, id)
 
-	db, err := sql.Open("postgres", conn)
 	if err != nil {
-		log.Panic(err)
+		return fmt.Errorf("error deleting user with id %v: %w", id, err)
 	}
-	// Create tables
-	if err := tables.CreateUsersTable(db); err != nil {
-		log.Fatal(err)
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking affected rows: %w", err)
 	}
 
-	return db, err
-
+	if rowsAffected == 0 {
+		return fmt.Errorf("error deleting user with id %v: user not found", id)
+	}
+	return err
 }

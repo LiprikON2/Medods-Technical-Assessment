@@ -201,6 +201,26 @@ var (
 	}
 )
 
+func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
+
+	userID := chi.URLParam(r, "UserID")
+
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		BadRequestErrorHandler(w, fmt.Errorf("invalid user ID format (%v): %w", userID, err))
+		return
+	}
+	err = c.service.DeleteUser(id)
+
+	if err != nil {
+		NotFoundErrorHandler(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func writeError(w http.ResponseWriter, message any, statusCode int) {
 	resp := auth.RequestError{
 		Code:    statusCode,
