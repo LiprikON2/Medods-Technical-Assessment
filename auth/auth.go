@@ -34,7 +34,7 @@ type UpdateUserDto struct {
 
 type RefreshToken struct {
 	UUID        UUID      `json:"uuid" db:"uuid"`
-	TokenString string    `json:"tokenString" db:"token_string"`
+	HashedToken string    `json:"hashedToken" db:"hashed_token"`
 	UserUUID    UUID      `json:"userUUID" db:"user_uuid"`
 	Revoked     bool      `json:"revoked" db:"revoked"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
@@ -90,13 +90,15 @@ type UUIDService interface {
 }
 
 type JWTService interface {
-	NewAccessToken(payload JWTPayload) (string, error)
-	NewRefreshToken(payload JWTPayload) (string, error)
-	GenerateTokens(payload JWTPayload) (accessToken string, refreshToken string, err error)
+	GenerateTokens(payload JWTPayloadDto, accessExpireTime time.Duration, refreshExpireTime time.Duration) (accessToken string, refreshToken string, err error)
 }
 
 type JWTPayload struct {
+	JWTPayloadDto
+	Exp int64 `json:"exp"`
+}
+
+type JWTPayloadDto struct {
 	IP  string `json:"ip"`
 	Iat int64  `json:"iat"`
-	Exp int64  `json:"exp"`
 }

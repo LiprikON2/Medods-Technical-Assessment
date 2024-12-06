@@ -216,13 +216,13 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 
 func (s *AuthService) AddRefreshTokenToWhitelist(refreshToken *auth.RefreshToken) error {
 	query := `
-        INSERT INTO refresh_tokens (uuid, token_string, user_uuid, revoked, created_at)
+        INSERT INTO refresh_tokens (uuid, hashed_token, user_uuid, revoked, created_at)
         VALUES ($1, $2, $3, $4, $5)`
 
 	_, err := s.DB.Exec(
 		query,
 		refreshToken.UUID,
-		refreshToken.TokenString,
+		refreshToken.HashedToken,
 		refreshToken.UserUUID,
 		refreshToken.Revoked,
 		refreshToken.CreatedAt,

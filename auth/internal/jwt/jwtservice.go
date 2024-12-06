@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"time"
 
 	auth "github.com/medods-technical-assessment"
 
@@ -39,20 +40,17 @@ func NewJWTService(refreshSecretStr string, accessSecretStr string) *JWTService 
 	}
 }
 
-func (j *JWTService) NewAccessToken(payload auth.JWTPayload) (string, error) {
-	return j.newToken(payload, j.accessSecret)
-}
+func (j *JWTService) GenerateTokens(payload auth.JWTPayloadDto, accessExpireIn time.Duration, refreshExpireIn time.Duration) (accessToken string, refreshToken string, err error) {
+	issuedAt := time.Unix(payload.Iat, 0)
 
-func (j *JWTService) NewRefreshToken(payload auth.JWTPayload) (string, error) {
-	return j.newToken(payload, j.refreshSecret)
-}
-
-func (j *JWTService) GenerateTokens(payload auth.JWTPayload) (accessToken string, refreshToken string, err error) {
-	accessToken, err = j.NewAccessToken(payload)
+	accessExpireTime := issuedAt.Add(accessExpireIn).Unix()
+	accessToken, err = j.newAccessToken(payload, accessExpireTime)
 	if err != nil {
 		return "", "", err
 	}
-	refreshToken, err = j.NewRefreshToken(payload)
+
+	refreshExpireTime := issuedAt.Add(refreshExpireIn).Unix()
+	refreshToken, err = j.newRefreshToken(payload, refreshExpireTime)
 	if err != nil {
 		return "", "", err
 	}
@@ -60,11 +58,19 @@ func (j *JWTService) GenerateTokens(payload auth.JWTPayload) (accessToken string
 	return accessToken, refreshToken, nil
 }
 
-func (j *JWTService) newToken(payload auth.JWTPayload, secret []byte) (string, error) {
+func (j *JWTService) newAccessToken(payload auth.JWTPayloadDto, expireTime int64) (string, error) {
+	return j.newToken(payload, expireTime, j.accessSecret)
+}
+
+func (j *JWTService) newRefreshToken(payload auth.JWTPayloadDto, expireTime int64) (string, error) {
+	return j.newToken(payload, expireTime, j.refreshSecret)
+}
+
+func (j *JWTService) newToken(payload auth.JWTPayloadDto, expireTime int64, secret []byte) (string, error) {
 	mapClaims := jwt.MapClaims{
 		"ip":  payload.IP,
 		"iat": payload.Iat,
-		"exp": payload.Exp,
+		"exp": expireTime,
 		// "nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
 	}
 

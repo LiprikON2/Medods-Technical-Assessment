@@ -10,7 +10,7 @@ func CreateRefreshTokensTable(db *sql.DB) error {
 	query := `
         CREATE TABLE IF NOT EXISTS refresh_tokens (
             uuid UUID PRIMARY KEY,
-            token_string TEXT NOT NULL,
+            hashed_token TEXT NOT NULL,
             user_uuid UUID NOT NULL,
             revoked BOOLEAN NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,

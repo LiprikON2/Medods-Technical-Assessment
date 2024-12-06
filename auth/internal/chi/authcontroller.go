@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -230,9 +229,9 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 
 	// JWT
 	issuedAt := time.Now()
-	payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
+	payload := auth.JWTPayloadDto{IP: r.RemoteAddr, Iat: issuedAt.Unix()}
 
-	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(payload)
+	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(payload, 5*time.Minute, 8*time.Hour)
 	if err != nil {
 		InternalErrorHandler(w, err)
 		return
@@ -240,7 +239,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 
 	refreshToken := &auth.RefreshToken{
 		UUID:        c.uuidService.New(),
-		TokenString: refreshTokenStr,
+		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
 		UserUUID:    user.UUID,
 		Revoked:     false,
 		CreatedAt:   issuedAt,
@@ -302,26 +301,26 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 
-	issuedAt := time.Now()
-	payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
+	// issuedAt := time.Now()
+	// payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
 
-	accessToken, err := c.jwtService.NewAccessToken(payload)
+	// accessToken, err := c.jwtService.NewAccessToken(payload)
 
-	refreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
-		TokenString: "",
-		// UserUUID: ,
-		Revoked:   false,
-		CreatedAt: issuedAt,
-	}
-	log.Println("refreshToken", refreshToken)
+	// refreshToken := &auth.RefreshToken{
+	// 	UUID:        c.uuidService.New(),
+	// 	HashedToken: "",
+	// 	// UserUUID: ,
+	// 	Revoked:   false,
+	// 	CreatedAt: issuedAt,
+	// }
+	// log.Println("refreshToken", refreshToken)
 
-	if err != nil {
-		InternalErrorHandler(w, err)
-		return
-	}
-	fmt.Println("accessToken", accessToken)
-	fmt.Println("RemoteAddr", r.RemoteAddr)
+	// if err != nil {
+	// 	InternalErrorHandler(w, err)
+	// 	return
+	// }
+	// fmt.Println("accessToken", accessToken)
+	// fmt.Println("RemoteAddr", r.RemoteAddr)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
