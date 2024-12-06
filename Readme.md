@@ -51,5 +51,4 @@ Reference:
 - https://www.gobeyond.dev/standard-package-layout/
 - https://www.reddit.com/r/golang/comments/wbawx5/comment/ii5m2ox/
 - https://threedots.tech/post/ddd-lite-in-go-introduction/
-- https://go.dev/blog/laws-of-reflection
-
+- https://security.stackexchange.com/questions/79577/whats-the-difference-between-hmac-sha256key-data-and-sha256key-data

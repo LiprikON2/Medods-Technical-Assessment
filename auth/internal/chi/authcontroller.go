@@ -15,14 +15,16 @@ type AuthController struct {
 	validationService auth.ValidationService
 	cryptoService     auth.CryptoService
 	uuidService       auth.UUIDService
+	jwtService        auth.JWTService
 }
 
-func NewAuthController(service auth.AuthService, validationService auth.ValidationService, cryptoService auth.CryptoService, uuidService auth.UUIDService) *AuthController {
+func NewAuthController(service auth.AuthService, validationService auth.ValidationService, cryptoService auth.CryptoService, uuidService auth.UUIDService, jwtService auth.JWTService) *AuthController {
 	return &AuthController{
 		service:           service,
 		validationService: validationService,
 		cryptoService:     cryptoService,
 		uuidService:       uuidService,
+		jwtService:        jwtService,
 	}
 }
 
@@ -225,4 +227,22 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		InternalErrorHandler(w, err)
 		return
 	}
+}
+
+func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
+	data := map[string]any{
+		"foo": "bar",
+		"ip":  r.RemoteAddr,
+	}
+	accessToken, err := c.jwtService.NewAccessToken(data)
+
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+	fmt.Println("accessToken", accessToken)
+	fmt.Println("RemoteAddr", r.RemoteAddr)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }

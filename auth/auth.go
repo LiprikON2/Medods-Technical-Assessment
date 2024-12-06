@@ -2,9 +2,9 @@ package auth
 
 import (
 	"net/http"
-
-	"github.com/google/uuid"
 )
+
+type UUID = [16]byte
 
 // Root package with domain types
 type User struct {
@@ -76,6 +76,7 @@ type UUIDService interface {
 	Parse(s string) (UUID, error)
 }
 
-// This somewhat breaks DDD
-// ref: https://stackoverflow.com/a/31933240
-type UUID = uuid.UUID
+type JWTService interface {
+	NewAccessToken(data map[string]any) (string, error)
+	NewRefreshToken(data map[string]any) (string, error)
+}

@@ -4,10 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 
-	// Autoloads `.env`
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/lib/pq"
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
@@ -25,12 +22,7 @@ func NewAuthService(db *sql.DB) *AuthService {
 	}
 }
 
-func Open() (*sql.DB, error) {
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	dbname := os.Getenv("POSTGRES_DATABASE")
-	user := os.Getenv("POSTGRES_USER")
-	password := os.Getenv("POSTGRES_PASSWORD")
+func Open(host, port, dbname, user, password string) (*sql.DB, error) {
 
 	conn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=disable",
 		host,
