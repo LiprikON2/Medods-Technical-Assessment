@@ -2,15 +2,19 @@ package auth
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-type UUID = [16]byte
+type UUID = uuid.UUID
 
 // Root package with domain types
 type User struct {
-	UUID     UUID   `json:"uuid" db:"uuid"`
-	Email    string `json:"email" db:"email"`
-	Password string `json:"-" db:"password"`
+	UUID          UUID            `json:"uuid" db:"uuid"`
+	Email         string          `json:"email" db:"email"`
+	Password      string          `json:"-" db:"password"`
+	RefreshTokens []*RefreshToken `json:"-" db:"refresh_tokens"`
 }
 
 type CreateUserDto struct {
@@ -28,10 +32,17 @@ type UpdateUserDto struct {
 	Password string `json:"password" validate:"omitempty,password,min=8"`
 }
 
-type JWT struct {
-	ID      int64  `json:"id" db:"id"`
-	Access  string `json:"access" db:"access"`
-	Refresh string `json:"refresh" db:"refresh"`
+type RefreshToken struct {
+	UUID        UUID      `json:"uuid" db:"uuid"`
+	TokenString string    `json:"tokenString" db:"token_string"`
+	UserUUID    UUID      `json:"userUUID" db:"user_uuid"`
+	Revoked     bool      `json:"revoked" db:"revoked"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+}
+
+type Tokens struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 type AuthService interface {
@@ -41,6 +52,7 @@ type AuthService interface {
 	CreateUser(u *User) (*User, error)
 	UpdateUser(u *User) (*User, error)
 	DeleteUser(uuid UUID) error
+	AddRefreshTokenToWhitelist(refreshToken *RefreshToken) error
 }
 
 type AuthController interface {
@@ -48,6 +60,7 @@ type AuthController interface {
 	Login(w http.ResponseWriter, r *http.Request)
 	GetUsers(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
+	Register(w http.ResponseWriter, r *http.Request)
 	UpdateUser(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 }
@@ -77,6 +90,13 @@ type UUIDService interface {
 }
 
 type JWTService interface {
-	NewAccessToken(data map[string]any) (string, error)
-	NewRefreshToken(data map[string]any) (string, error)
+	NewAccessToken(payload JWTPayload) (string, error)
+	NewRefreshToken(payload JWTPayload) (string, error)
+	GenerateTokens(payload JWTPayload) (accessToken string, refreshToken string, err error)
+}
+
+type JWTPayload struct {
+	IP  string `json:"ip"`
+	Iat int64  `json:"iat"`
+	Exp int64  `json:"exp"`
 }

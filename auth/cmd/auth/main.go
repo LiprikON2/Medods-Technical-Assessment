@@ -68,6 +68,7 @@ func main() {
 			// r.Use(middleware.Authorization)
 			r.Get("/", ac.GetUsers)
 			r.Post("/", ac.CreateUser)
+			r.Post("/register", ac.Register)
 			r.Post("/login", ac.Login)
 			r.Post("/refresh", ac.Refresh)
 			r.Group(func(r chi.Router) {

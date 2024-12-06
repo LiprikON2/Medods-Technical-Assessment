@@ -41,6 +41,9 @@ func Open(host, port, dbname, user, password string) (*sql.DB, error) {
 	if err := tables.CreateUsersTable(db); err != nil {
 		log.Panic(err)
 	}
+	if err := tables.CreateRefreshTokensTable(db); err != nil {
+		log.Panic(err)
+	}
 
 	return db, err
 
@@ -209,4 +212,25 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 		return fmt.Errorf("error deleting user with id %v: user not found", uuid)
 	}
 	return err
+}
+
+func (s *AuthService) AddRefreshTokenToWhitelist(refreshToken *auth.RefreshToken) error {
+	query := `
+        INSERT INTO refresh_tokens (uuid, token_string, user_uuid, revoked, created_at)
+        VALUES ($1, $2, $3, $4, $5)`
+
+	_, err := s.DB.Exec(
+		query,
+		refreshToken.UUID,
+		refreshToken.TokenString,
+		refreshToken.UserUUID,
+		refreshToken.Revoked,
+		refreshToken.CreatedAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("error whitelisting refresh token: %w", err)
+	}
+
+	return nil
 }

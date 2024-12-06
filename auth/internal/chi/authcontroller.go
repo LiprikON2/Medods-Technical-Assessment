@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
@@ -111,9 +113,6 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(createdUser); err != nil {
@@ -196,6 +195,78 @@ func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	var userInput auth.CreateUserDto
+	if err := decoder.Decode(&userInput); err != nil {
+		BadRequestErrorHandler(w, err)
+		return
+	}
+
+	// Validate input
+	if errors := c.validationService.ValidateUserInput(userInput); len(errors) > 0 {
+		ValidationErrorHandler(w, errors)
+		return
+	}
+
+	user := &auth.User{
+		UUID:     c.uuidService.New(),
+		Email:    userInput.Email,
+		Password: c.cryptoService.HashPassword(userInput.Password),
+	}
+
+	_, err := c.service.CreateUser(user)
+	if err != nil {
+		if errors.Is(err, common.ErrDuplicateEmail) {
+			ConflictErrorHandler(w, err)
+			return
+		}
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	// JWT
+	issuedAt := time.Now()
+	payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
+
+	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(payload)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	refreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		TokenString: refreshTokenStr,
+		UserUUID:    user.UUID,
+		Revoked:     false,
+		CreatedAt:   issuedAt,
+	}
+	err = c.service.AddRefreshTokenToWhitelist(refreshToken)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	tokens := &auth.Tokens{
+		AccessToken:  accessTokenStr,
+		RefreshToken: refreshTokenStr,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(tokens); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
 func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
@@ -230,11 +301,20 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
-	data := map[string]any{
-		"foo": "bar",
-		"ip":  r.RemoteAddr,
+
+	issuedAt := time.Now()
+	payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
+
+	accessToken, err := c.jwtService.NewAccessToken(payload)
+
+	refreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		TokenString: "",
+		// UserUUID: ,
+		Revoked:   false,
+		CreatedAt: issuedAt,
 	}
-	accessToken, err := c.jwtService.NewAccessToken(data)
+	log.Println("refreshToken", refreshToken)
 
 	if err != nil {
 		InternalErrorHandler(w, err)
