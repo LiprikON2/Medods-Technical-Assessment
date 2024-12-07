@@ -89,12 +89,14 @@ type CryptoService interface {
 type UUIDService interface {
 	New() UUID
 	Parse(s string) (UUID, error)
+	FromBytes(b []byte) (uuid UUID, err error)
 }
 
 type JWTService interface {
 	GenerateTokens(refreshPayload *RefreshPayload, accessPayload *AccessPayload) (accessToken string, refreshToken string, err error)
 	VerifyAccessToken(accessToken string) error
 	GetAccessTokenPayload(accessToken string) (*AccessPayload, error)
+	GetRefreshTokenPayload(refreshToken string) (*RefreshPayload, error)
 }
 type RefreshPayload struct {
 	// Unique identifier which ensures that each token is unique

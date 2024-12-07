@@ -359,14 +359,12 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("refreshToken", refreshInput.RefreshToken)
 	accessPayload, err := c.jwtService.GetAccessTokenPayload(refreshInput.AccessToken)
 	if err != nil {
 		// TODO handle errors better
 		BadRequestErrorHandler(w, err)
 		return
 	}
-	log.Println("accessPayload", accessPayload)
 
 	user, err := c.service.GetUser(accessPayload.Sub)
 	if err != nil {
@@ -384,6 +382,13 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		ForbiddenErrorHandler(w, err)
 		return
 	}
+
+	refreshPayload, err := c.jwtService.GetRefreshTokenPayload(refreshInput.RefreshToken)
+	if err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+	log.Println("refreshPayload", refreshPayload)
 
 	// JWT
 	issuedAt := time.Now()

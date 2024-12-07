@@ -215,7 +215,6 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 }
 
 func (s *AuthService) AddRefreshToken(refreshToken *auth.RefreshToken) error {
-	log.Println("adding token")
 	query := `
         INSERT INTO refresh_tokens (uuid, hashed_token, user_uuid, active, created_at)
         VALUES ($1, $2, $3, $4, $5)`

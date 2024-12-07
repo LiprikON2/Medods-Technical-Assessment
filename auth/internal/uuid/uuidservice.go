@@ -1,7 +1,7 @@
 package uuid
 
 import (
-	"github.com/google/uuid"
+	googleuuid "github.com/google/uuid"
 
 	auth "github.com/medods-technical-assessment"
 )
@@ -13,8 +13,11 @@ func NewUUIDService() *UUIDService {
 }
 
 func (u *UUIDService) New() auth.UUID {
-	return uuid.New()
+	return googleuuid.New()
 }
 func (u *UUIDService) Parse(s string) (auth.UUID, error) {
-	return uuid.Parse(s)
+	return googleuuid.Parse(s)
+}
+func (u *UUIDService) FromBytes(b []byte) (uuid auth.UUID, err error) {
+	return googleuuid.FromBytes(b)
 }
