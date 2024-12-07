@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/netip"
 
 	auth "github.com/medods-technical-assessment"
 
@@ -39,10 +40,7 @@ func (j *JWTService) GenerateTokens(refreshPayload *auth.RefreshPayload, accessP
 		return "", "", err
 	}
 
-	refreshToken, err = j.newRefreshToken(refreshPayload)
-	if err != nil {
-		return "", "", err
-	}
+	refreshToken = j.newRefreshToken(refreshPayload)
 
 	return accessToken, refreshToken, nil
 }
@@ -62,15 +60,13 @@ func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error)
 
 }
 
-// Returns byte array slice of payload + HS256 signature encoded in base64 string
-func (j *JWTService) newRefreshToken(payload *auth.RefreshPayload) (string, error) {
+func (j *JWTService) newRefreshToken(payload *auth.RefreshPayload) string {
 	payloadJti := payload.Jti[:]
-
-	// payloadBytes := append(payloadJti, signature...)
-	payloadBytes := payloadJti
+	payloadIp := payload.IP.AsSlice()
+	payloadBytes := append(payloadJti, payloadIp...)
 
 	refreshToken := base64.StdEncoding.EncodeToString(payloadBytes)
-	return refreshToken, nil
+	return refreshToken
 }
 
 func (j *JWTService) VerifyAccessToken(accessToken string) error {
@@ -103,12 +99,7 @@ func (j *JWTService) getAccessTokenPayload(tokenString string, secret []byte) (*
 		return nil, fmt.Errorf("invalid token claims")
 	}
 
-	payload, err := j.parseAccessTokenClaims(claims)
-	if err != nil {
-		return nil, err
-	}
-
-	return payload, nil
+	return j.parseAccessTokenClaims(claims)
 }
 
 func (j *JWTService) parseAccessTokenClaims(claims jwt.MapClaims) (*auth.AccessPayload, error) {
@@ -166,24 +157,24 @@ func (j *JWTService) getRefreshTokenPayload(tokenString string) (*auth.RefreshPa
 		return nil, fmt.Errorf("error decoding refresh token: %w", err)
 	}
 
-	payload, err := j.parseRefreshToken(paySignCombined)
-	if err != nil {
-		return nil, err
-	}
-
-	return payload, nil
+	return j.parseRefreshToken(paySignCombined)
 }
 
-func (j *JWTService) parseRefreshToken(paySignCombined []byte) (*auth.RefreshPayload, error) {
-	payload := &auth.RefreshPayload{}
-	payloadJti := paySignCombined[:16]
-	// signature := paySignCombined[len(paySignCombined)-32:]
+func (j *JWTService) parseRefreshToken(payloadBytes []byte) (*auth.RefreshPayload, error) {
+	payloadJti := payloadBytes[:16]
 
 	jti, err := j.uuidService.FromBytes(payloadJti)
 	if err != nil {
 		return nil, fmt.Errorf("invalid jti type: %w", err)
 	}
 
-	payload.Jti = jti
+	payloadIp := payloadBytes[16:]
+
+	ip, ok := netip.AddrFromSlice(payloadIp)
+	if !ok && len(payloadIp) != 0 {
+		return nil, fmt.Errorf("invalid ip type")
+	}
+
+	payload := &auth.RefreshPayload{Jti: jti, IP: ip}
 	return payload, nil
 }

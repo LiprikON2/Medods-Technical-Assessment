@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"time"
 
 	auth "github.com/medods-technical-assessment"
@@ -221,10 +222,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		Password: c.cryptoService.HashPassword(userInput.Password),
 	}
 
-	// JWT
-	issuedAt := time.Now()
-	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -247,7 +245,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
 		UserUUID:    user.UUID,
 		Active:      true,
-		CreatedAt:   issuedAt,
+		CreatedAt:   time.Unix(accessPayload.Iat, 0),
 	}
 
 	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
@@ -301,10 +299,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JWT
-	issuedAt := time.Now()
-	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -317,7 +312,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
 		UserUUID:    user.UUID,
 		Active:      true,
-		CreatedAt:   issuedAt,
+		CreatedAt:   time.Unix(accessPayload.Iat, 0),
 	}
 
 	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
@@ -390,14 +385,11 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if refreshPayload.Jti != accessPayload.Jti {
-		ForbiddenErrorHandler(w, fmt.Errorf("jti in accessToken and refreshToken does not match"))
+		ForbiddenErrorHandler(w, fmt.Errorf("jti in accessToken and refreshToken do not match"))
 		return
 	}
 
-	// JWT
-	issuedAt := time.Now()
-	newRefreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	newAccessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	newRefreshPayload, newAccessPayload := c.createPayloads(r, user.UUID)
 
 	if accessPayload.IP != newAccessPayload.IP {
 		log.Println("NEW IP DETECTED!", accessPayload.IP, "vs", newAccessPayload.IP)
@@ -414,7 +406,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		HashedToken: c.cryptoService.HashPassword(newRefreshTokenStr),
 		UserUUID:    user.UUID,
 		Active:      true,
-		CreatedAt:   issuedAt,
+		CreatedAt:   time.Unix(accessPayload.Iat, 0),
 	}
 
 	err = c.service.RevokeRefreshTokensByUser(newRefreshToken.UserUUID)
@@ -453,7 +445,25 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 // }
 
 // Returns string with either IPv4 or IPv6
-func (c *AuthController) getIp(r *http.Request) string {
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return host
+func (c *AuthController) getIp(r *http.Request) (string, netip.Addr) {
+	ipStr, _, err := net.SplitHostPort(r.RemoteAddr)
+
+	if err != nil {
+		return "", netip.Addr{}
+	}
+
+	ip, err := netip.ParseAddr(ipStr)
+	if err != nil {
+		return "", netip.Addr{}
+	}
+	return ipStr, ip
+}
+
+func (c *AuthController) createPayloads(r *http.Request, userUUID auth.UUID) (*auth.RefreshPayload, *auth.AccessPayload) {
+	issuedAt := time.Now()
+	ipStr, ip := c.getIp(r)
+	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New(), IP: ip}
+	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Sub: userUUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+
+	return refreshPayload, accessPayload
 }

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -103,9 +104,11 @@ type RefreshPayload struct {
 	// - each generated token is unique
 	// - refresh and access tokens are coupled
 	Jti UUID `json:"jti"`
+	// User's IPv4 or IPv6 address (without port)
+	IP netip.Addr `json:"ip"`
 }
 type AccessPayload struct {
-	// User's ip address (without port)
+	// User's IPv4 or IPv6 address (without port)
 	IP string `json:"ip"`
 	// Issued at
 	Iat int64 `json:"iat"`
