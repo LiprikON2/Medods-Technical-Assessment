@@ -36,7 +36,7 @@ type RefreshToken struct {
 	UUID        UUID      `json:"uuid" db:"uuid"`
 	HashedToken string    `json:"hashedToken" db:"hashed_token"`
 	UserUUID    UUID      `json:"userUUID" db:"user_uuid"`
-	Revoked     bool      `json:"revoked" db:"revoked"`
+	Active      bool      `json:"active" db:"active"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
 }
 
@@ -49,10 +49,12 @@ type AuthService interface {
 	GetUser(uuid UUID) (*User, error)
 	GetUserByEmail(email string) (*User, error)
 	GetUsers() ([]*User, error)
-	CreateUser(u *User) (*User, error)
-	UpdateUser(u *User) (*User, error)
+	CreateUser(user *User) (*User, error)
+	UpdateUser(user *User) (*User, error)
 	DeleteUser(uuid UUID) error
-	AddRefreshTokenToWhitelist(refreshToken *RefreshToken) error
+	AddRefreshToken(refreshToken *RefreshToken) error
+	RevokeRefreshTokensByUser(userUUID UUID) error
+	GetActiveRefreshTokenByUser(userUUID UUID) (*RefreshToken, error)
 }
 
 type AuthController interface {
@@ -90,15 +92,21 @@ type UUIDService interface {
 }
 
 type JWTService interface {
-	GenerateTokens(payload JWTPayloadDto, accessExpireTime time.Duration, refreshExpireTime time.Duration) (accessToken string, refreshToken string, err error)
+	GenerateTokens(refreshPayload *RefreshPayload, accessPayload *AccessPayload) (accessToken string, refreshToken string, err error)
+	VerifyAccessToken(accessToken string) error
+	GetAccessTokenPayload(accessToken string) (*AccessPayload, error)
 }
-
-type JWTPayload struct {
-	JWTPayloadDto
+type RefreshPayload struct {
+	// Unique identifier which ensures that each token is unique
+	Jti UUID `json:"jti"`
+}
+type AccessPayload struct {
+	// User's ip address (without port)
+	IP string `json:"ip"`
+	// Issued at
+	Iat int64 `json:"iat"`
+	// Expiration time
 	Exp int64 `json:"exp"`
-}
-
-type JWTPayloadDto struct {
-	IP  string `json:"ip"`
-	Iat int64  `json:"iat"`
+	// User's UUID
+	Sub UUID `json:"sub"`
 }

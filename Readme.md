@@ -26,13 +26,15 @@ Access токен
 
 Refresh токен
 - Тип произвольный
-  - *Используется так же JWT*
+  - *Используется кастомный формат гарантирующий размер 72 байта или меньше (bcrypt не может хешировать длинее)*
 - Формат передачи base64
-  - *Подписанные JWT токены возвращаются в виде base64* 
+  - *С учетом лимита на создание bcrypt хеша в 72 символа, максимальное количество байт которое сможет хранить в себе base64 строка (72 * 3/4) 54 байта*
 - Хранится в базе исключительно в виде bcrypt хеша
-  - *TODO*
+  <!-- - *Из факта хеширования следует, что обратно получить Payload невозможно* -->
+  - *Из факта соления следует, что при Refresh операции нельзя найти запись в бд исключительно по Refresh токену*
+    - *Нужно хранить GUID пользователя в Acess токене*
 - Должен быть защищен от изменения на стороне клиента 
-  - *Защита реализована JWT подписью при помощи переменной из среды (`JWT_REFRESH_SECRET`)*
+  - *Защита реализована sha подписью при помощи переменной из среды (`JWT_REFRESH_SECRET`)*
 - Должен быть защищен от попыток повторного использования
   - *Защита реализована заданием срока годности `exp` в Payload (8 часов для Refresh токена и 5 минут для Access токена)*
   - *Так же, токен может быть отозван исходя из значения поля `Revoked` в базе данных*
@@ -101,3 +103,6 @@ Reference:
 - https://threedots.tech/post/ddd-lite-in-go-introduction/
 - https://security.stackexchange.com/questions/79577/whats-the-difference-between-hmac-sha256key-data-and-sha256key-data
 - https://stackoverflow.com/a/54378384
+- https://datatracker.ietf.org/doc/html/rfc7519#section-4.1
+- https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
+- https://security.stackexchange.com/questions/39849/does-bcrypt-have-a-maximum-password-length

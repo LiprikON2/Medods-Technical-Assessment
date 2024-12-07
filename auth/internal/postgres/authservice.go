@@ -214,9 +214,10 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 	return err
 }
 
-func (s *AuthService) AddRefreshTokenToWhitelist(refreshToken *auth.RefreshToken) error {
+func (s *AuthService) AddRefreshToken(refreshToken *auth.RefreshToken) error {
+	log.Println("adding token")
 	query := `
-        INSERT INTO refresh_tokens (uuid, hashed_token, user_uuid, revoked, created_at)
+        INSERT INTO refresh_tokens (uuid, hashed_token, user_uuid, active, created_at)
         VALUES ($1, $2, $3, $4, $5)`
 
 	_, err := s.DB.Exec(
@@ -224,13 +225,53 @@ func (s *AuthService) AddRefreshTokenToWhitelist(refreshToken *auth.RefreshToken
 		refreshToken.UUID,
 		refreshToken.HashedToken,
 		refreshToken.UserUUID,
-		refreshToken.Revoked,
+		refreshToken.Active,
 		refreshToken.CreatedAt,
 	)
 
 	if err != nil {
-		return fmt.Errorf("error whitelisting refresh token: %w", err)
+		return fmt.Errorf("error adding refresh token: %w", err)
 	}
 
 	return nil
+}
+
+func (s *AuthService) RevokeRefreshTokensByUser(userUUID auth.UUID) error {
+	query := `
+		UPDATE refresh_tokens
+		SET active = false
+		WHERE user_uuid = $1`
+
+	_, err := s.DB.Exec(query, userUUID)
+
+	if err != nil {
+		return fmt.Errorf("error while revoking refresh tokens for user with %v: %w", userUUID, err)
+	}
+
+	return nil
+}
+func (s *AuthService) GetActiveRefreshTokenByUser(userUUID auth.UUID) (*auth.RefreshToken, error) {
+	refreshToken := &auth.RefreshToken{}
+	query := `
+        SELECT uuid, hashed_token, user_uuid, active, created_at
+        FROM refresh_tokens
+        WHERE user_uuid = $1 AND
+			  active = true`
+
+	err := s.DB.QueryRow(query, userUUID).Scan(
+		&refreshToken.UUID,
+		&refreshToken.HashedToken,
+		&refreshToken.UserUUID,
+		&refreshToken.Active,
+		&refreshToken.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("refresh token not found: %w", err)
+	}
+	// TODO this is internal error
+	if err != nil {
+		return nil, fmt.Errorf("error getting refresh token: %w", err)
+	}
+
+	return refreshToken, nil
 }

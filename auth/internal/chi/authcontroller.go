@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"time"
 
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
 )
+
+const accessTokenExpireTime = 5 * time.Minute
 
 type AuthController struct {
 	service           auth.AuthService
@@ -217,7 +221,18 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		Password: c.cryptoService.HashPassword(userInput.Password),
 	}
 
-	_, err := c.service.CreateUser(user)
+	// JWT
+	issuedAt := time.Now()
+	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
+	accessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+
+	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	_, err = c.service.CreateUser(user)
 	if err != nil {
 		if errors.Is(err, common.ErrDuplicateEmail) {
 			ConflictErrorHandler(w, err)
@@ -227,25 +242,23 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JWT
-	issuedAt := time.Now()
-	payload := auth.JWTPayloadDto{IP: r.RemoteAddr, Iat: issuedAt.Unix()}
+	refreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
+		UserUUID:    user.UUID,
+		Active:      true,
+		CreatedAt:   issuedAt,
+	}
 
-	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(payload, 5*time.Minute, 8*time.Hour)
+	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
 	if err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
 
-	refreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
-		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
-		UserUUID:    user.UUID,
-		Revoked:     false,
-		CreatedAt:   issuedAt,
-	}
-	err = c.service.AddRefreshTokenToWhitelist(refreshToken)
+	err = c.service.AddRefreshToken(refreshToken)
 	if err != nil {
+		c.service.DeleteUser(user.UUID)
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -288,12 +301,48 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// JWT
+	issuedAt := time.Now()
+	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
+	accessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+
+	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	refreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
+		UserUUID:    user.UUID,
+		Active:      true,
+		CreatedAt:   issuedAt,
+	}
+
+	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	err = c.service.AddRefreshToken(refreshToken)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	tokens := &auth.Tokens{
+		AccessToken:  accessTokenStr,
+		RefreshToken: refreshTokenStr,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(user); err != nil {
+	if err := encoder.Encode(tokens); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -301,27 +350,101 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 
-	// issuedAt := time.Now()
-	// payload := auth.JWTPayload{IP: r.RemoteAddr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(5 * time.Minute).Unix()}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
 
-	// accessToken, err := c.jwtService.NewAccessToken(payload)
+	var refreshInput auth.Tokens
+	if err := decoder.Decode(&refreshInput); err != nil {
+		BadRequestErrorHandler(w, err)
+		return
+	}
 
-	// refreshToken := &auth.RefreshToken{
-	// 	UUID:        c.uuidService.New(),
-	// 	HashedToken: "",
-	// 	// UserUUID: ,
-	// 	Revoked:   false,
-	// 	CreatedAt: issuedAt,
-	// }
-	// log.Println("refreshToken", refreshToken)
+	log.Println("refreshToken", refreshInput.RefreshToken)
+	accessPayload, err := c.jwtService.GetAccessTokenPayload(refreshInput.AccessToken)
+	if err != nil {
+		// TODO handle errors better
+		BadRequestErrorHandler(w, err)
+		return
+	}
+	log.Println("accessPayload", accessPayload)
 
-	// if err != nil {
-	// 	InternalErrorHandler(w, err)
-	// 	return
-	// }
-	// fmt.Println("accessToken", accessToken)
-	// fmt.Println("RemoteAddr", r.RemoteAddr)
+	user, err := c.service.GetUser(accessPayload.Sub)
+	if err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+
+	refreshToken, err := c.service.GetActiveRefreshTokenByUser(user.UUID)
+	if err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+	err = c.cryptoService.ComparePasswords(refreshToken.HashedToken, refreshInput.RefreshToken)
+	if err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+
+	// JWT
+	issuedAt := time.Now()
+	newRefreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
+	newAccessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+
+	if accessPayload.IP != newAccessPayload.IP {
+		log.Println("NEW IP DETECTED!", accessPayload.IP, "vs", newAccessPayload.IP)
+	}
+
+	newAccessTokenStr, newRefreshTokenStr, err := c.jwtService.GenerateTokens(newRefreshPayload, newAccessPayload)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	newRefreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		HashedToken: c.cryptoService.HashPassword(newRefreshTokenStr),
+		UserUUID:    user.UUID,
+		Active:      true,
+		CreatedAt:   issuedAt,
+	}
+
+	err = c.service.RevokeRefreshTokensByUser(newRefreshToken.UserUUID)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	err = c.service.AddRefreshToken(newRefreshToken)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	tokens := &auth.Tokens{
+		AccessToken:  newAccessTokenStr,
+		RefreshToken: newRefreshTokenStr,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(tokens); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
+// TODO create middleware
+// err := c.jwtService.VerifyAccessToken(refreshInput.AccessToken)
+// if err != nil {
+// 	ForbiddenErrorHandler(w, err)
+// 	return
+// }
+
+// Returns string with either IPv4 or IPv6
+func (c *AuthController) getIp(r *http.Request) string {
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	return host
 }

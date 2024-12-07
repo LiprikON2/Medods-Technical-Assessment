@@ -45,7 +45,7 @@ func main() {
 	vs := validator.NewValidationService()
 	cs := bcrypt.NewCryptoService()
 	us := uuid.NewUUIDService()
-	js := jwt.NewJWTService(os.Getenv("JWT_REFRESH_SECRET"), os.Getenv("JWT_ACCESS_SECRET"))
+	js := jwt.NewJWTService(os.Getenv("JWT_REFRESH_SECRET"), os.Getenv("JWT_ACCESS_SECRET"), us)
 	r := chi.NewChiRouter()
 
 	ac := chi.NewAuthController(as, vs, cs, us, js)
@@ -54,6 +54,8 @@ func main() {
 
 	// A good base middleware stack
 	r.Use(middleware.RequestID)
+	// Not very trustworthy
+	// ref: https://adam-p.ca/blog/2022/03/x-forwarded-for/#go-chichi
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)

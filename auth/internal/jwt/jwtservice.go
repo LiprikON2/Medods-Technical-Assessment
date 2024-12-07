@@ -1,10 +1,11 @@
 package jwt
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log"
-	"time"
 
 	auth "github.com/medods-technical-assessment"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type JWTService struct {
+	uuidService   auth.UUIDService
 	refreshSecret []byte
 	accessSecret  []byte
 }
 
-func NewJWTService(refreshSecretStr string, accessSecretStr string) *JWTService {
+func NewJWTService(refreshSecretStr string, accessSecretStr string, uuidService auth.UUIDService) *JWTService {
 	if refreshSecretStr == "" {
 		log.Panic(fmt.Errorf("refreshSecretStr is empty"))
 	}
@@ -37,20 +39,17 @@ func NewJWTService(refreshSecretStr string, accessSecretStr string) *JWTService 
 	return &JWTService{
 		refreshSecret: refreshSecret,
 		accessSecret:  accessSecret,
+		uuidService:   uuidService,
 	}
 }
 
-func (j *JWTService) GenerateTokens(payload auth.JWTPayloadDto, accessExpireIn time.Duration, refreshExpireIn time.Duration) (accessToken string, refreshToken string, err error) {
-	issuedAt := time.Unix(payload.Iat, 0)
-
-	accessExpireTime := issuedAt.Add(accessExpireIn).Unix()
-	accessToken, err = j.newAccessToken(payload, accessExpireTime)
+func (j *JWTService) GenerateTokens(refreshPayload *auth.RefreshPayload, accessPayload *auth.AccessPayload) (accessToken string, refreshToken string, err error) {
+	accessToken, err = j.newAccessToken(accessPayload)
 	if err != nil {
 		return "", "", err
 	}
 
-	refreshExpireTime := issuedAt.Add(refreshExpireIn).Unix()
-	refreshToken, err = j.newRefreshToken(payload, refreshExpireTime)
+	refreshToken, err = j.newRefreshToken(refreshPayload)
 	if err != nil {
 		return "", "", err
 	}
@@ -58,25 +57,102 @@ func (j *JWTService) GenerateTokens(payload auth.JWTPayloadDto, accessExpireIn t
 	return accessToken, refreshToken, nil
 }
 
-func (j *JWTService) newAccessToken(payload auth.JWTPayloadDto, expireTime int64) (string, error) {
-	return j.newToken(payload, expireTime, j.accessSecret)
-}
-
-func (j *JWTService) newRefreshToken(payload auth.JWTPayloadDto, expireTime int64) (string, error) {
-	return j.newToken(payload, expireTime, j.refreshSecret)
-}
-
-func (j *JWTService) newToken(payload auth.JWTPayloadDto, expireTime int64, secret []byte) (string, error) {
+func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error) {
 	mapClaims := jwt.MapClaims{
 		"ip":  payload.IP,
 		"iat": payload.Iat,
-		"exp": expireTime,
-		// "nbf": time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		"sub": payload.Sub,
+		"exp": payload.Exp,
 	}
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, mapClaims)
-	tokenString, err := token.SignedString(secret)
+	tokenString, err := token.SignedString(j.accessSecret)
 
 	return tokenString, err
 
+}
+
+// Returns byte array slice of payload + HS256 signature encoded in base64 string
+func (j *JWTService) newRefreshToken(payload *auth.RefreshPayload) (string, error) {
+	payloadBytes := payload.Jti[:]
+
+	h := hmac.New(sha256.New, j.refreshSecret)
+	h.Write(payloadBytes)
+
+	signature := h.Sum(nil)
+
+	refreshToken := base64.StdEncoding.EncodeToString(append(payloadBytes, signature...))
+	return refreshToken, nil
+}
+
+func (j *JWTService) VerifyAccessToken(accessToken string) error {
+	_, err := j.getAccessTokenPayload(accessToken, j.accessSecret)
+	return err
+}
+
+func (j *JWTService) GetAccessTokenPayload(accessToken string) (*auth.AccessPayload, error) {
+	return j.getAccessTokenPayload(accessToken, j.accessSecret)
+}
+
+func (j *JWTService) getAccessTokenPayload(tokenString string, secret []byte) (*auth.AccessPayload, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secret, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	payload, err := j.parseClaims(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return payload, nil
+}
+
+func (j *JWTService) parseClaims(claims jwt.MapClaims) (*auth.AccessPayload, error) {
+	payload := &auth.AccessPayload{}
+
+	if ip, ok := claims["ip"].(string); ok {
+		payload.IP = ip
+	} else {
+		return nil, fmt.Errorf("invalid ip claim type")
+	}
+
+	if exp, ok := claims["exp"].(float64); ok {
+		payload.Exp = int64(exp)
+	} else {
+		return nil, fmt.Errorf("invalid exp claim type")
+	}
+
+	if iat, ok := claims["iat"].(float64); ok {
+		payload.Iat = int64(iat)
+	} else {
+		return nil, fmt.Errorf("invalid iat claim type")
+	}
+
+	if sub, ok := claims["sub"].(string); ok {
+		userUUID, err := j.uuidService.Parse(sub)
+		if err != nil {
+			return nil, fmt.Errorf("invalid sub claim type")
+		}
+		payload.Sub = userUUID
+
+	} else {
+		return nil, fmt.Errorf("invalid sub claim type")
+	}
+
+	return payload, nil
 }
