@@ -45,7 +45,7 @@ func main() {
 	vs := validator.NewValidationService()
 	cs := bcrypt.NewCryptoService()
 	us := uuid.NewUUIDService()
-	js := jwt.NewJWTService(os.Getenv("JWT_REFRESH_SECRET"), os.Getenv("JWT_ACCESS_SECRET"), us)
+	js := jwt.NewJWTService(os.Getenv("JWT_ACCESS_SECRET"), us)
 	r := chi.NewChiRouter()
 
 	ac := chi.NewAuthController(as, vs, cs, us, js)

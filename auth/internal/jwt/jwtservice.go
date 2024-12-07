@@ -1,8 +1,6 @@
 package jwt
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -13,33 +11,25 @@ import (
 )
 
 type JWTService struct {
-	uuidService   auth.UUIDService
-	refreshSecret []byte
-	accessSecret  []byte
+	uuidService  auth.UUIDService
+	accessSecret []byte
 }
 
-func NewJWTService(refreshSecretStr string, accessSecretStr string, uuidService auth.UUIDService) *JWTService {
-	if refreshSecretStr == "" {
-		log.Panic(fmt.Errorf("refreshSecretStr is empty"))
-	}
+func NewJWTService(accessSecretStr string, uuidService auth.UUIDService) *JWTService {
+
 	if accessSecretStr == "" {
 		log.Panic(fmt.Errorf("accessSecretStr is empty"))
 	}
 
 	// ref: https://golang-jwt.github.io/jwt/usage/signing_methods/#signing-methods-and-key-types
-	refreshSecret, err := base64.StdEncoding.DecodeString(refreshSecretStr)
-	if err != nil {
-		log.Panic(fmt.Errorf("couldn't convert refreshSecret into bytes: %w", err))
-	}
 	accessSecret, err := base64.StdEncoding.DecodeString(accessSecretStr)
 	if err != nil {
 		log.Panic(fmt.Errorf("couldn't convert accessSecret into bytes: %w", err))
 	}
 
 	return &JWTService{
-		refreshSecret: refreshSecret,
-		accessSecret:  accessSecret,
-		uuidService:   uuidService,
+		accessSecret: accessSecret,
+		uuidService:  uuidService,
 	}
 }
 
@@ -74,16 +64,12 @@ func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error)
 // Returns byte array slice of payload + HS256 signature encoded in base64 string
 // TODO since token is hashed with bcrypt, signature might not be needed
 func (j *JWTService) newRefreshToken(payload *auth.RefreshPayload) (string, error) {
-	payloadBytes := payload.Jti[:]
+	payloadJti := payload.Jti[:]
 
-	h := hmac.New(sha256.New, j.refreshSecret)
-	h.Write(payloadBytes)
+	// payloadBytes := append(payloadJti, signature...)
+	payloadBytes := payloadJti
 
-	signature := h.Sum(nil)
-
-	paySignCombined := append(payloadBytes, signature...)
-
-	refreshToken := base64.StdEncoding.EncodeToString(paySignCombined)
+	refreshToken := base64.StdEncoding.EncodeToString(payloadBytes)
 	return refreshToken, nil
 }
 
@@ -161,10 +147,10 @@ func (j *JWTService) parseAccessTokenClaims(claims jwt.MapClaims) (*auth.AccessP
 }
 
 func (j *JWTService) GetRefreshTokenPayload(refreshToken string) (*auth.RefreshPayload, error) {
-	return j.getRefreshTokenPayload(refreshToken, j.refreshSecret)
+	return j.getRefreshTokenPayload(refreshToken)
 }
 
-func (j *JWTService) getRefreshTokenPayload(tokenString string, secret []byte) (*auth.RefreshPayload, error) {
+func (j *JWTService) getRefreshTokenPayload(tokenString string) (*auth.RefreshPayload, error) {
 	paySignCombined, err := base64.StdEncoding.DecodeString(tokenString)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding refresh token: %w", err)
@@ -180,10 +166,10 @@ func (j *JWTService) getRefreshTokenPayload(tokenString string, secret []byte) (
 
 func (j *JWTService) parseRefreshToken(paySignCombined []byte) (*auth.RefreshPayload, error) {
 	payload := &auth.RefreshPayload{}
-	payloadBytes := paySignCombined[:len(paySignCombined)-32]
+	payloadJti := paySignCombined[:16]
 	// signature := paySignCombined[len(paySignCombined)-32:]
 
-	jti, err := j.uuidService.FromBytes(payloadBytes)
+	jti, err := j.uuidService.FromBytes(payloadJti)
 	if err != nil {
 		return nil, fmt.Errorf("invalid jti type: %w", err)
 	}

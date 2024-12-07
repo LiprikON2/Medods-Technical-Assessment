@@ -99,7 +99,7 @@ type JWTService interface {
 	GetRefreshTokenPayload(refreshToken string) (*RefreshPayload, error)
 }
 type RefreshPayload struct {
-	// Unique identifier which ensures that each token is unique
+	// Unique identifier which ensures that each generated token is unique
 	Jti UUID `json:"jti"`
 }
 type AccessPayload struct {
