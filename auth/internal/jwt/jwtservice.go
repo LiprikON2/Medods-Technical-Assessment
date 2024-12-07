@@ -62,7 +62,6 @@ func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error)
 }
 
 // Returns byte array slice of payload + HS256 signature encoded in base64 string
-// TODO since token is hashed with bcrypt, signature might not be needed
 func (j *JWTService) newRefreshToken(payload *auth.RefreshPayload) (string, error) {
 	payloadJti := payload.Jti[:]
 
