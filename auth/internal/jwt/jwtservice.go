@@ -49,6 +49,7 @@ func (j *JWTService) GenerateTokens(refreshPayload *auth.RefreshPayload, accessP
 
 func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error) {
 	mapClaims := jwt.MapClaims{
+		"jti": payload.Jti,
 		"ip":  payload.IP,
 		"iat": payload.Iat,
 		"sub": payload.Sub,
@@ -112,6 +113,16 @@ func (j *JWTService) getAccessTokenPayload(tokenString string, secret []byte) (*
 
 func (j *JWTService) parseAccessTokenClaims(claims jwt.MapClaims) (*auth.AccessPayload, error) {
 	payload := &auth.AccessPayload{}
+
+	if jtiStr, ok := claims["jti"].(string); ok {
+		jti, err := j.uuidService.Parse(jtiStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid jti claim type")
+		}
+		payload.Jti = jti
+	} else {
+		return nil, fmt.Errorf("invalid jti claim type")
+	}
 
 	if ip, ok := claims["ip"].(string); ok {
 		payload.IP = ip

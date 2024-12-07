@@ -1,9 +1,9 @@
 package common
 
-import "errors"
+import "fmt"
 
 var (
-	ErrDuplicateEmail = errors.New("user with this email already exists")
+	ErrDuplicateEmail = fmt.Errorf("user with this email already exists")
 )
 
 const (

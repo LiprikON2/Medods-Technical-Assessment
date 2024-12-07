@@ -224,7 +224,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	// JWT
 	issuedAt := time.Now()
 	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	accessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -304,7 +304,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	// JWT
 	issuedAt := time.Now()
 	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	accessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -388,12 +388,16 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		ForbiddenErrorHandler(w, err)
 		return
 	}
-	log.Println("refreshPayload", refreshPayload)
+
+	if refreshPayload.Jti != accessPayload.Jti {
+		ForbiddenErrorHandler(w, fmt.Errorf("jti in accessToken and refreshToken does not match"))
+		return
+	}
 
 	// JWT
 	issuedAt := time.Now()
 	newRefreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New()}
-	newAccessPayload := &auth.AccessPayload{IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	newAccessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: c.getIp(r), Sub: user.UUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 	if accessPayload.IP != newAccessPayload.IP {
 		log.Println("NEW IP DETECTED!", accessPayload.IP, "vs", newAccessPayload.IP)
