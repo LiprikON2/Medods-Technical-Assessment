@@ -92,6 +92,7 @@ type CryptoService interface {
 type UUIDService interface {
 	New() UUID
 	Parse(s string) (UUID, error)
+	MustParse(s string) UUID
 	FromBytes(b []byte) (uuid UUID, err error)
 }
 

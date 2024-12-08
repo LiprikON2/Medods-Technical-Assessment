@@ -148,11 +148,7 @@ func (j *JWTService) parseAccessTokenClaims(claims jwt.MapClaims) (*auth.AccessP
 }
 
 func (j *JWTService) GetRefreshTokenPayload(refreshToken string) (*auth.RefreshPayload, error) {
-	return j.getRefreshTokenPayload(refreshToken)
-}
-
-func (j *JWTService) getRefreshTokenPayload(tokenString string) (*auth.RefreshPayload, error) {
-	paySignCombined, err := base64.StdEncoding.DecodeString(tokenString)
+	paySignCombined, err := base64.StdEncoding.DecodeString(refreshToken)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding refresh token: %w", err)
 	}

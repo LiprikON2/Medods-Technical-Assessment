@@ -18,6 +18,9 @@ func (u *UUIDService) New() auth.UUID {
 func (u *UUIDService) Parse(s string) (auth.UUID, error) {
 	return googleuuid.Parse(s)
 }
+func (u *UUIDService) MustParse(s string) auth.UUID {
+	return googleuuid.MustParse(s)
+}
 func (u *UUIDService) FromBytes(b []byte) (uuid auth.UUID, err error) {
 	return googleuuid.FromBytes(b)
 }

@@ -73,6 +73,10 @@ Installing uninstalled (but imported) dependencies
 ### Testing
 > ref: https://go.dev/doc/code#Testing
 
+Run all tests
+```
+(cd auth && go test ./...)
+```
 
 
 ### Architecture

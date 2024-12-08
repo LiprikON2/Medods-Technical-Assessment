@@ -340,7 +340,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	newRefreshPayload, newAccessPayload := c.createPayloads(r, user.UUID)
 
 	if accessPayload.IP != newAccessPayload.IP {
-		c.mailService.Send("orie.collier@ethereal.email", "New login", fmt.Sprintf(`We noticed you logged in from a new ip address %s. If this was you, there's nothing for you to do right now.`, newAccessPayload.IP))
+		c.mailService.Send(user.Email, "New login", fmt.Sprintf(`We noticed you logged in from a new ip address %s. If this was you, there's nothing for you to do right now.`, newAccessPayload.IP))
 	}
 
 	newAccessTokenStr, newRefreshTokenStr, err := c.jwtService.GenerateTokens(newRefreshPayload, newAccessPayload)
