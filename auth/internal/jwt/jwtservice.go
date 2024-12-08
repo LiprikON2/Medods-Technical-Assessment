@@ -19,13 +19,13 @@ type JWTService struct {
 func NewJWTService(accessSecretStr string, uuidService auth.UUIDService) *JWTService {
 
 	if accessSecretStr == "" {
-		log.Panic(fmt.Errorf("accessSecretStr is empty"))
+		log.Panic(fmt.Errorf("error creating jwt service: accessSecretStr is empty"))
 	}
 
 	// ref: https://golang-jwt.github.io/jwt/usage/signing_methods/#signing-methods-and-key-types
 	accessSecret, err := base64.StdEncoding.DecodeString(accessSecretStr)
 	if err != nil {
-		log.Panic(fmt.Errorf("couldn't convert accessSecret into bytes: %w", err))
+		log.Panic(fmt.Errorf("error creating jwt service: couldn't convert accessSecret into bytes: %w", err))
 	}
 
 	return &JWTService{

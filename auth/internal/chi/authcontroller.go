@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/netip"
@@ -22,15 +21,17 @@ type AuthController struct {
 	cryptoService     auth.CryptoService
 	uuidService       auth.UUIDService
 	jwtService        auth.JWTService
+	mailService       auth.MailService
 }
 
-func NewAuthController(service auth.AuthService, validationService auth.ValidationService, cryptoService auth.CryptoService, uuidService auth.UUIDService, jwtService auth.JWTService) *AuthController {
+func NewAuthController(service auth.AuthService, validationService auth.ValidationService, cryptoService auth.CryptoService, uuidService auth.UUIDService, jwtService auth.JWTService, mailService auth.MailService) *AuthController {
 	return &AuthController{
 		service:           service,
 		validationService: validationService,
 		cryptoService:     cryptoService,
 		uuidService:       uuidService,
 		jwtService:        jwtService,
+		mailService:       mailService,
 	}
 }
 
@@ -58,7 +59,6 @@ func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *AuthController) GetUsers(w http.ResponseWriter, r *http.Request) {
-
 	users, err := c.service.GetUsers()
 
 	if err != nil {
@@ -340,7 +340,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	newRefreshPayload, newAccessPayload := c.createPayloads(r, user.UUID)
 
 	if accessPayload.IP != newAccessPayload.IP {
-		log.Println("NEW IP DETECTED!", accessPayload.IP, "vs", newAccessPayload.IP)
+		c.mailService.Send("orie.collier@ethereal.email", "New login", fmt.Sprintf(`We noticed you logged in from a new ip address %s. If this was you, there's nothing for you to do right now.`, newAccessPayload.IP))
 	}
 
 	newAccessTokenStr, newRefreshTokenStr, err := c.jwtService.GenerateTokens(newRefreshPayload, newAccessPayload)

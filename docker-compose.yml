@@ -8,14 +8,22 @@ services:
         ports:
             - 8080:8080
         environment:
+            # Server
             - PORT=8080
+            # Postgres
             - POSTGRES_DATABASE=auth
             - POSTGRES_HOST=${POSTGRES_HOST}
             - POSTGRES_PORT=${POSTGRES_PORT}
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            # SMTP
+            - SMTP_FROM=${SMTP_FROM}
+            - SMTP_PASSWORD=${SMTP_PASSWORD}
+            - SMTP_HOST=${SMTP_HOST}
+            - SMTP_PORT=${SMTP_PORT}
+            - SMTP_TSL_INSECURE_SKIP_VERIFY=${SMTP_TSL_INSECURE_SKIP_VERIFY}
+            # JWT
             - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
-            - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
         volumes:
             - ./auth/:/auth/
         depends_on:

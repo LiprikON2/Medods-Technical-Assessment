@@ -123,3 +123,7 @@ type AccessPayload struct {
 	// User's UUID
 	Sub UUID `json:"sub"`
 }
+
+type MailService interface {
+	Send(to, subject, message string) error
+}

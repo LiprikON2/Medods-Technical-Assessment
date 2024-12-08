@@ -13,6 +13,7 @@ import (
 	cmddl "github.com/medods-technical-assessment/internal/chi/middleware"
 	"github.com/medods-technical-assessment/internal/jwt"
 	"github.com/medods-technical-assessment/internal/postgres"
+	"github.com/medods-technical-assessment/internal/smtp"
 	"github.com/medods-technical-assessment/internal/uuid"
 	"github.com/medods-technical-assessment/internal/validator"
 
@@ -46,9 +47,15 @@ func main() {
 	cs := bcrypt.NewCryptoService()
 	us := uuid.NewUUIDService()
 	js := jwt.NewJWTService(os.Getenv("JWT_ACCESS_SECRET"), us)
+	ms := smtp.NewMailService(
+		os.Getenv("SMTP_FROM"),
+		os.Getenv("SMTP_PASSWORD"),
+		os.Getenv("SMTP_HOST"),
+		os.Getenv("SMTP_PORT"),
+		os.Getenv("SMTP_TSL_INSECURE_SKIP_VERIFY"))
 	r := chi.NewChiRouter()
 
-	ac := chi.NewAuthController(as, vs, cs, us, js)
+	ac := chi.NewAuthController(as, vs, cs, us, js, ms)
 
 	r.Use(mddl.StripSlashes)
 
