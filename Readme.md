@@ -401,7 +401,7 @@ Example response:
 ##### Example request 1:
 
 Headers
-```json
+```
 Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzgwMjgsImlhdCI6MTczMzYzNzcyOCwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiZjk5YjkyNTMtNGIwYi00ZDFlLTg5NmUtOWVjYmMxNzJjNWUwIiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.EYGs2uu7KXIwOJT_xf1bQ1xjxJvMrfhG0gwu67d89mZEJnvV7TWwyp3WmB3UOQSppRALkzxTV9fkdcpp19wEJw
 ```
 
@@ -420,7 +420,7 @@ Example response:
 ##### Example request 2:
 
 Headers
-```json
+```
 (empty)
 ```
 
@@ -436,7 +436,7 @@ Example response:
 ##### Example request 2:
 
 Headers (expired access token)
-```json
+```
 Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzgwMjgsImlhdCI6MTczMzYzNzcyOCwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiZjk5YjkyNTMtNGIwYi00ZDFlLTg5NmUtOWVjYmMxNzJjNWUwIiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.EYGs2uu7KXIwOJT_xf1bQ1xjxJvMrfhG0gwu67d89mZEJnvV7TWwyp3WmB3UOQSppRALkzxTV9fkdcpp19wEJw
 ```
 
@@ -779,7 +779,7 @@ Example response:
 `DELETE http://localhost:8080/api/v1/auth/898be767-f66f-494d-be9a-c1be85548bb7`
 
 Headers
-```json
+```
 Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzkzMDUsImlhdCI6MTczMzYzOTAwNSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiNjQyNThmZjgtYmFmNC00OTQ4LTliNWMtNTVjNTExOWEyZjI3Iiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.t3GeawGNFsRBiPRzD6OU8ZQAWm66ZgO-kNXdMeistDnng3nAohw1qV_Gmdtjj8Wb4Z_8vgRzy2FdvVBz48NKYg
 
 ```
@@ -796,7 +796,7 @@ Example response (204):
 `DELETE http://localhost:8080/api/v1/auth/898be767-f66f-494d-be9a-c1be85548bb7`
 
 Headers
-```json
+```
 (empty)
 ```
 
@@ -815,7 +815,7 @@ Example response:
 
 
 Headers (expired token)
-```json
+```
 Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzkzMDUsImlhdCI6MTczMzYzOTAwNSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiNjQyNThmZjgtYmFmNC00OTQ4LTliNWMtNTVjNTExOWEyZjI3Iiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.t3GeawGNFsRBiPRzD6OU8ZQAWm66ZgO-kNXdMeistDnng3nAohw1qV_Gmdtjj8Wb4Z_8vgRzy2FdvVBz48NKYg
 ```
 
@@ -832,7 +832,7 @@ Example response:
 `DELETE http://localhost:8080/api/v1/auth/00000000-f66f-494d-be9a-c1be85548bb7`
 
 Headers (expired token)
-```json
+```
 Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzkzMDUsImlhdCI6MTczMzYzOTAwNSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiNjQyNThmZjgtYmFmNC00OTQ4LTliNWMtNTVjNTExOWEyZjI3Iiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.t3GeawGNFsRBiPRzD6OU8ZQAWm66ZgO-kNXdMeistDnng3nAohw1qV_Gmdtjj8Wb4Z_8vgRzy2FdvVBz48NKYg
 ```
 
