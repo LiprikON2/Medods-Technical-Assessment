@@ -211,7 +211,12 @@ Reference:
 
 
 
+
+___
+
+
 ### Endpoints
+
 
 #### `POST /api/v1/auth/register`
 
@@ -336,6 +341,8 @@ Example response:
 ```
 
 
+___
+
 #### `POST /api/v1/auth/login`
 
 
@@ -394,6 +401,8 @@ Example response:
 ```
 
 
+___
+
 #### `GET /api/v1/auth/`
 - Requires header `Authorization: Bearer eyJhb...`
 
@@ -450,6 +459,8 @@ Example response:
 
 
 
+___
+
 #### `POST /api/v1/auth/login/{GUID}`
 
 ##### Example request 1:
@@ -503,6 +514,8 @@ Example response:
 }
 ```
 
+
+___
 
 #### `POST /api/v1/auth/refresh`
 
@@ -641,6 +654,8 @@ Example response:
 }
 ```
 
+___
+
 #### `GET /api/v1/auth/{GUID}`
 
 ##### Example request 1:
@@ -667,6 +682,8 @@ Example response:
 }
 ```
 
+
+___
 
 #### `PATCH /api/v1/auth/{GUID}`
 - Requires header `Authorization: Bearer eyJhb...`
@@ -770,6 +787,8 @@ Example response:
 }
 ```
 
+
+___
 
 #### `DELETE /api/v1/auth/{GUID}`
 - Requires header `Authorization: Bearer eyJhb...`
