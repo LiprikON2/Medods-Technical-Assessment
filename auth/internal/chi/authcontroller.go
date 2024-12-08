@@ -374,13 +374,6 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO create middleware
-// err := c.jwtService.VerifyAccessToken(refreshInput.AccessToken)
-// if err != nil {
-// 	ForbiddenErrorHandler(w, err)
-// 	return
-// }
-
 // Returns string with either IPv4 or IPv6
 func (c *AuthController) getIp(r *http.Request) (string, netip.Addr) {
 	ipStr, _, err := net.SplitHostPort(r.RemoteAddr)

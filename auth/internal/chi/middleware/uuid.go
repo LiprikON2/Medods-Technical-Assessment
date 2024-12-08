@@ -1,4 +1,4 @@
-package uuid
+package chi
 
 import (
 	"context"

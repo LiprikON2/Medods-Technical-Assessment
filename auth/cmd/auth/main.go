@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-chi/chi/middleware"
+	mddl "github.com/go-chi/chi/middleware"
 
 	"github.com/medods-technical-assessment/internal/bcrypt"
 	"github.com/medods-technical-assessment/internal/chi"
-	cmiddleware "github.com/medods-technical-assessment/internal/chi/middleware"
+	cmddl "github.com/medods-technical-assessment/internal/chi/middleware"
 	"github.com/medods-technical-assessment/internal/jwt"
 	"github.com/medods-technical-assessment/internal/postgres"
 	"github.com/medods-technical-assessment/internal/uuid"
@@ -50,51 +50,51 @@ func main() {
 
 	ac := chi.NewAuthController(as, vs, cs, us, js)
 
-	r.Use(middleware.StripSlashes)
+	r.Use(mddl.StripSlashes)
 
 	// A good base middleware stack
-	r.Use(middleware.RequestID)
+	r.Use(mddl.RequestID)
 	// Not very trustworthy
 	// ref: https://adam-p.ca/blog/2022/03/x-forwarded-for/#go-chichi
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(mddl.RealIP)
+	r.Use(mddl.Logger)
+	r.Use(mddl.Recoverer)
 
 	// Set a timeout value on the request context (ctx), that will signal
 	// through ctx.Done() that the request has timed out and further
 	// processing should be stopped.
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(mddl.Timeout(60 * time.Second))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
-			r.Route("/", func(r chi.Router) {
-				// r.Use(middleware.Authorization)
-				r.Get("/", ac.GetUsers)
-				r.Post("/", ac.CreateUser)
+			r.Post("/register", ac.Register)
+			r.Route("/login", func(r chi.Router) {
+				r.With(cmddl.ValidateUUIDParam("UserUUID")).Post("/{UserUUID}", ac.LoginByUUID)
+				r.Post("/", ac.Login)
+			})
+			r.Post("/refresh", ac.Refresh)
 
-				r.Post("/register", ac.Register)
-				r.Route("/login", func(r chi.Router) {
-					r.Post("/", ac.Login)
-					r.With(cmiddleware.ValidateUUIDParam("UserUUID")).Post("/{UserUUID}", ac.LoginByUUID)
-				})
-				r.Post("/refresh", ac.Refresh)
-				r.Group(func(r chi.Router) {
-					r.Use(cmiddleware.ValidateUUIDParam("UserUUID"))
-					r.Get("/{UserUUID}", ac.GetUser)
-					r.Patch("/{UserUUID}", ac.UpdateUser)
-					r.Delete("/{UserUUID}", ac.DeleteUser)
-				})
+			r.With(cmddl.Authorization(js)).Get("/", ac.GetUsers)
+			r.With(cmddl.Authorization(js)).Post("/", ac.CreateUser)
+
+			r.With(cmddl.ValidateUUIDParam("UserUUID")).Group(func(r chi.Router) {
+				r.Get("/{UserUUID}", ac.GetUser)
+				r.With(cmddl.Authorization(js)).Patch("/{UserUUID}", ac.UpdateUser)
+				r.With(cmddl.Authorization(js)).Delete("/{UserUUID}", ac.DeleteUser)
 			})
 		})
 	})
 
-	// Start http server...
-	log.Print("Starting HTTP server at: http://localhost:8080")
-
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: r,
 	}
+	log.Printf("Starting HTTP server at http://localhost:%s", port)
+
 	err = server.ListenAndServe()
 	if err != nil {
 		log.Panic(err)

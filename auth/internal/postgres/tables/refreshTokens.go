@@ -18,7 +18,7 @@ func CreateRefreshTokensTable(db *sql.DB) error {
             FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
         );
         
-        -- Creates a partial index which ensures there is only a single 
+        -- Creates a partial index which ensures there is only ever a single active token per user
         CREATE UNIQUE INDEX IF NOT EXISTS idx_single_active_token_per_user
         ON refresh_tokens (user_uuid)
         WHERE active = true;`
