@@ -1,5 +1,7 @@
 package auth
 
+// Root package with domain types
+
 import (
 	"net/http"
 	"net/netip"
@@ -10,7 +12,6 @@ import (
 
 type UUID = uuid.UUID
 
-// Root package with domain types
 type User struct {
 	UUID          UUID            `json:"uuid" db:"uuid"`
 	Email         string          `json:"email" db:"email"`
@@ -23,14 +24,14 @@ type CreateUserDto struct {
 	Password string `json:"password" validate:"required,password,min=8"`
 }
 
-type Login struct {
-	Email    string `json:"email" db:"email"`
-	Password string `json:"password" db:"password"`
-}
-
 type UpdateUserDto struct {
 	Email    string `json:"email" validate:"omitempty,email,max=254"`
 	Password string `json:"password" validate:"omitempty,password,min=8"`
+}
+
+type LoginUserDto struct {
+	Email    string `json:"email" db:"email"`
+	Password string `json:"password" db:"password"`
 }
 
 type RefreshToken struct {
@@ -61,6 +62,7 @@ type AuthService interface {
 type AuthController interface {
 	GetUser(w http.ResponseWriter, r *http.Request)
 	Login(w http.ResponseWriter, r *http.Request)
+	LoginByUUID(w http.ResponseWriter, r *http.Request)
 	GetUsers(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	Register(w http.ResponseWriter, r *http.Request)
@@ -108,6 +110,10 @@ type RefreshPayload struct {
 	IP netip.Addr `json:"ip"`
 }
 type AccessPayload struct {
+	// Unique identifier which ensures that:
+	// - each generated token is unique
+	// - refresh and access tokens are coupled
+	Jti UUID `json:"jti"`
 	// User's IPv4 or IPv6 address (without port)
 	IP string `json:"ip"`
 	// Issued at
@@ -116,8 +122,4 @@ type AccessPayload struct {
 	Exp int64 `json:"exp"`
 	// User's UUID
 	Sub UUID `json:"sub"`
-	// Unique identifier which ensures that:
-	// - each generated token is unique
-	// - refresh and access tokens are coupled
-	Jti UUID `json:"jti"`
 }

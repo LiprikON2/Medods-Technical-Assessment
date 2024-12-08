@@ -10,7 +10,7 @@ import (
 
 	"github.com/medods-technical-assessment/internal/bcrypt"
 	"github.com/medods-technical-assessment/internal/chi"
-	chimiddleware "github.com/medods-technical-assessment/internal/chi/middleware"
+	cmiddleware "github.com/medods-technical-assessment/internal/chi/middleware"
 	"github.com/medods-technical-assessment/internal/jwt"
 	"github.com/medods-technical-assessment/internal/postgres"
 	"github.com/medods-technical-assessment/internal/uuid"
@@ -65,19 +65,25 @@ func main() {
 	// processing should be stopped.
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	r.Route("/auth", func(r chi.Router) {
-		r.Route("/", func(r chi.Router) {
-			// r.Use(middleware.Authorization)
-			r.Get("/", ac.GetUsers)
-			r.Post("/", ac.CreateUser)
-			r.Post("/register", ac.Register)
-			r.Post("/login", ac.Login)
-			r.Post("/refresh", ac.Refresh)
-			r.Group(func(r chi.Router) {
-				r.Use(chimiddleware.ValidateUUIDParam("UserUUID"))
-				r.Get("/{UserUUID}", ac.GetUser)
-				r.Patch("/{UserUUID}", ac.UpdateUser)
-				r.Delete("/{UserUUID}", ac.DeleteUser)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
+			r.Route("/", func(r chi.Router) {
+				// r.Use(middleware.Authorization)
+				r.Get("/", ac.GetUsers)
+				r.Post("/", ac.CreateUser)
+
+				r.Post("/register", ac.Register)
+				r.Route("/login", func(r chi.Router) {
+					r.Post("/", ac.Login)
+					r.With(cmiddleware.ValidateUUIDParam("UserUUID")).Post("/{UserUUID}", ac.LoginByUUID)
+				})
+				r.Post("/refresh", ac.Refresh)
+				r.Group(func(r chi.Router) {
+					r.Use(cmiddleware.ValidateUUIDParam("UserUUID"))
+					r.Get("/{UserUUID}", ac.GetUser)
+					r.Patch("/{UserUUID}", ac.UpdateUser)
+					r.Delete("/{UserUUID}", ac.DeleteUser)
+				})
 			})
 		})
 	})

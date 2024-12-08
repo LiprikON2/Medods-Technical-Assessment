@@ -39,9 +39,9 @@ type CtxUUIDKey struct{}
 
 func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 
-	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
-	if !ok {
-		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
+	userUUID, err := c.getUserUUIDFromContext(r)
+	if err != nil {
+		InternalErrorHandler(w, err)
 		return
 	}
 	user, err := c.service.GetUser(userUUID)
@@ -51,13 +51,7 @@ func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-
-	if err := encoder.Encode(user); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: user}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -72,13 +66,7 @@ func (c *AuthController) GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-
-	if err := encoder.Encode(users); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: users}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -117,18 +105,16 @@ func (c *AuthController) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(createdUser); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusCreated, json: createdUser}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
 }
 
 func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
-	if !ok {
-		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
+	userUUID, err := c.getUserUUIDFromContext(r)
+	if err != nil {
+		InternalErrorHandler(w, err)
 		return
 	}
 	user, err := c.service.GetUser(userUUID)
@@ -170,33 +156,30 @@ func (c *AuthController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(updatedUser); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: updatedUser}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
 }
 
 func (c *AuthController) DeleteUser(w http.ResponseWriter, r *http.Request) {
-
-	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
-	if !ok {
-		InternalErrorHandler(w, fmt.Errorf("failed to get UUID from context"))
+	userUUID, err := c.getUserUUIDFromContext(r)
+	if err != nil {
+		InternalErrorHandler(w, err)
 		return
 	}
-	err := c.service.DeleteUser(userUUID)
+	err = c.service.DeleteUser(userUUID)
 
 	if err != nil {
 		NotFoundErrorHandler(w, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNoContent)
+	if err = c.writeResponse(respParams{w: w, code: http.StatusNoContent}); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
 }
 
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
@@ -240,13 +223,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
-		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
-		UserUUID:    user.UUID,
-		Active:      true,
-		CreatedAt:   time.Unix(accessPayload.Iat, 0),
-	}
+	refreshToken := c.makeRefreshToken(refreshTokenStr, user.UUID, accessPayload.Iat)
 
 	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
 	if err != nil {
@@ -266,12 +243,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: refreshTokenStr,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(tokens); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusCreated, json: tokens}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -282,7 +254,7 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
-	var loginInput auth.Login
+	var loginInput auth.LoginUserDto
 	if err := decoder.Decode(&loginInput); err != nil {
 		BadRequestErrorHandler(w, err)
 		return
@@ -299,48 +271,24 @@ func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
+	c.handleSuccessfulAuth(w, r, user)
+}
 
-	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
+func (c *AuthController) LoginByUUID(w http.ResponseWriter, r *http.Request) {
+
+	userUUID, err := c.getUserUUIDFromContext(r)
 	if err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
+	user, err := c.service.GetUser(userUUID)
 
-	refreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
-		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
-		UserUUID:    user.UUID,
-		Active:      true,
-		CreatedAt:   time.Unix(accessPayload.Iat, 0),
-	}
-
-	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
 	if err != nil {
-		InternalErrorHandler(w, err)
+		NotFoundErrorHandler(w, err)
 		return
 	}
 
-	err = c.service.AddRefreshToken(refreshToken)
-	if err != nil {
-		InternalErrorHandler(w, err)
-		return
-	}
-
-	tokens := &auth.Tokens{
-		AccessToken:  accessTokenStr,
-		RefreshToken: refreshTokenStr,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(tokens); err != nil {
-		InternalErrorHandler(w, err)
-		return
-	}
+	c.handleSuccessfulAuth(w, r, user)
 }
 
 func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -401,13 +349,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newRefreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
-		HashedToken: c.cryptoService.HashPassword(newRefreshTokenStr),
-		UserUUID:    user.UUID,
-		Active:      true,
-		CreatedAt:   time.Unix(accessPayload.Iat, 0),
-	}
+	newRefreshToken := c.makeRefreshToken(newRefreshTokenStr, user.UUID, accessPayload.Iat)
 
 	err = c.service.RevokeRefreshTokensByUser(newRefreshToken.UserUUID)
 	if err != nil {
@@ -426,12 +368,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: newRefreshTokenStr,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(tokens); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: tokens}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -466,4 +403,89 @@ func (c *AuthController) createPayloads(r *http.Request, userUUID auth.UUID) (*a
 	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Sub: userUUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 	return refreshPayload, accessPayload
+}
+
+func (c *AuthController) handleSuccessfulAuth(w http.ResponseWriter, r *http.Request, user *auth.User) {
+	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
+
+	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	refreshToken := c.makeRefreshToken(refreshTokenStr, user.UUID, accessPayload.Iat)
+
+	if err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	if err = c.service.AddRefreshToken(refreshToken); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	tokens := &auth.Tokens{
+		AccessToken:  accessTokenStr,
+		RefreshToken: refreshTokenStr,
+	}
+
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: tokens}); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
+func (c *AuthController) makeRefreshToken(refreshTokenStr string, userUUID auth.UUID, Iat int64) *auth.RefreshToken {
+	refreshToken := &auth.RefreshToken{
+		UUID:        c.uuidService.New(),
+		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
+		UserUUID:    userUUID,
+		Active:      true,
+		CreatedAt:   time.Unix(Iat, 0),
+	}
+
+	return refreshToken
+}
+
+func (c *AuthController) getUserUUIDFromContext(r *http.Request) (auth.UUID, error) {
+	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
+	if !ok {
+		return auth.UUID{}, fmt.Errorf("failed to get UUID from context")
+	}
+
+	return userUUID, nil
+}
+
+type respParams struct {
+	w    http.ResponseWriter
+	code int
+	json any
+}
+
+func (c *AuthController) writeResponse(params respParams) error {
+	if params.w == nil {
+		return fmt.Errorf("w param is not provided")
+	}
+	if params.code == 0 {
+		return fmt.Errorf("statusCode param is not provided")
+	}
+
+	params.w.Header().Set("Content-Type", "application/json")
+	params.w.WriteHeader(params.code)
+
+	if params.json == nil {
+		return nil
+	}
+
+	encoder := json.NewEncoder(params.w)
+	encoder.SetIndent("", "  ")
+
+	err := encoder.Encode(params.json)
+	if err != nil {
+		return fmt.Errorf("error writing response: %w", err)
+	}
+
+	return nil
 }
