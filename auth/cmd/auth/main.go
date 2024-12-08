@@ -80,6 +80,7 @@ func main() {
 				r.Post("/", ac.Login)
 			})
 			r.Post("/refresh", ac.Refresh)
+			r.With(cmddl.Authorization(js)).Get("/me", ac.GetMe)
 
 			r.With(cmddl.Authorization(js)).Get("/", ac.GetUsers)
 			r.With(cmddl.Authorization(js)).Post("/", ac.CreateUser)

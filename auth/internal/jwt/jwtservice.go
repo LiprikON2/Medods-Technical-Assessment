@@ -50,7 +50,6 @@ func (j *JWTService) newAccessToken(payload *auth.AccessPayload) (string, error)
 		"jti": payload.Jti,
 		"ip":  payload.IP,
 		"iat": payload.Iat,
-		"sub": payload.Sub,
 		"exp": payload.Exp,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, mapClaims)
@@ -131,17 +130,6 @@ func (j *JWTService) parseAccessTokenClaims(claims jwt.MapClaims) (*auth.AccessP
 		payload.Iat = int64(iat)
 	} else {
 		return nil, fmt.Errorf("invalid iat claim type")
-	}
-
-	if sub, ok := claims["sub"].(string); ok {
-		userUUID, err := j.uuidService.Parse(sub)
-		if err != nil {
-			return nil, fmt.Errorf("invalid sub claim type")
-		}
-		payload.Sub = userUUID
-
-	} else {
-		return nil, fmt.Errorf("invalid sub claim type")
 	}
 
 	return payload, nil

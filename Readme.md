@@ -29,34 +29,37 @@
         - [Example request 1:](#example-request-1-1)
         - [Example request 2:](#example-request-2-1)
         - [Example request 3:](#example-request-3-1)
-      - [`GET /api/v1/auth/`](#get-apiv1auth)
+      - [`GET /api/v1/auth/me`](#get-apiv1authme)
         - [Example request 1:](#example-request-1-2)
         - [Example request 2:](#example-request-2-2)
-        - [Example request 2:](#example-request-2-3)
-      - [`POST /api/v1/auth/login/{GUID}`](#post-apiv1authloginguid)
+      - [`GET /api/v1/auth/`](#get-apiv1auth)
         - [Example request 1:](#example-request-1-3)
+        - [Example request 2:](#example-request-2-3)
         - [Example request 2:](#example-request-2-4)
-        - [Example request 3:](#example-request-3-2)
-      - [`POST /api/v1/auth/refresh`](#post-apiv1authrefresh)
+      - [`POST /api/v1/auth/login/{GUID}`](#post-apiv1authloginguid)
         - [Example request 1:](#example-request-1-4)
         - [Example request 2:](#example-request-2-5)
+        - [Example request 3:](#example-request-3-2)
+      - [`POST /api/v1/auth/refresh`](#post-apiv1authrefresh)
+        - [Example request 1:](#example-request-1-5)
+        - [Example request 2:](#example-request-2-6)
         - [Example request 3:](#example-request-3-3)
         - [Example request 4:](#example-request-4-1)
         - [Example request 5:](#example-request-5-1)
         - [Example request 6:](#example-request-6-1)
         - [Example request 7:](#example-request-7)
       - [`GET /api/v1/auth/{GUID}`](#get-apiv1authguid)
-        - [Example request 1:](#example-request-1-5)
-        - [Example request 2:](#example-request-2-6)
-      - [`PATCH /api/v1/auth/{GUID}`](#patch-apiv1authguid)
         - [Example request 1:](#example-request-1-6)
         - [Example request 2:](#example-request-2-7)
+      - [`PATCH /api/v1/auth/{GUID}`](#patch-apiv1authguid)
+        - [Example request 1:](#example-request-1-7)
+        - [Example request 2:](#example-request-2-8)
         - [Example request 3:](#example-request-3-4)
         - [Example request 4:](#example-request-4-2)
         - [Example request 5:](#example-request-5-2)
       - [`DELETE /api/v1/auth/{GUID}`](#delete-apiv1authguid)
-        - [Example request 1:](#example-request-1-7)
-        - [Example request 2:](#example-request-2-8)
+        - [Example request 1:](#example-request-1-8)
+        - [Example request 2:](#example-request-2-9)
         - [Example request 3:](#example-request-3-5)
         - [Example request 4:](#example-request-4-3)
 
@@ -72,39 +75,45 @@
 
 Пример запроса `POST http://localhost:8080/api/v1/auth/login/cec24247-497f-48f2-8a93-4ccdc2fdd65b`
 
-`(пустое тело)`
+
+Тело
+```
+(пусто)
+```
 
 Пример ответа
 ```
 {
-  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzU4NTIsImlhdCI6MTczMzYzNTU1MiwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiM2E4YjJhMjItYjRjNi00NzUyLWExOTktY2ZkMGU0MjI4NmJlIiwic3ViIjoiY2VjMjQyNDctNDk3Zi00OGYyLThhOTMtNGNjZGMyZmRkNjViIn0.rmMNd4ByO12QUM-YoHxuh8LysM3rI-d_pyosim6BdP2EoynJQHQ1Xpua5VsmG9cOHIHZFMO4TERPTWUDFO6X2A",
-  "refreshToken": "OosqIrTGR1Khmc/Q5CKGvqwSAAE="
+  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTk5MTcsImlhdCI6MTczMzY5OTYxNywiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiMDBlMWFhNGMtN2YxMi00Y2Y4LWIyNGEtYmU1YTM2MjgyNTZjIn0.s9IfgsetfB1HzArmbAz3Rlh2Z4sGA5u2spcB3TT4Q9DFlDFLu9v7R-_kmHfeW1ugEwUnhpOQeja3FDNeHzuMIg",
+  "refreshToken": "AOGqTH8STPiySr5aNiglbKwSAAE="
 }
 ```
 
-Реализация [./auth/internal/chi/authcontroller.go#L277](./auth/internal/chi/authcontroller.go#L277)
+Реализация [./auth/internal/chi/authcontroller.go#L285](./auth/internal/chi/authcontroller.go#L285)
 
 
 #### Второй маршрут выполняет Refresh операцию на пару Access, Refresh токенов
 > `POST http://localhost:8080/api/v1/auth/refresh`
 
 Пример запроса `POST http://localhost:8080/api/v1/auth/refresh`
+
+Тело
 ```
 {
-  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzU4NTIsImlhdCI6MTczMzYzNTU1MiwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiM2E4YjJhMjItYjRjNi00NzUyLWExOTktY2ZkMGU0MjI4NmJlIiwic3ViIjoiY2VjMjQyNDctNDk3Zi00OGYyLThhOTMtNGNjZGMyZmRkNjViIn0.rmMNd4ByO12QUM-YoHxuh8LysM3rI-d_pyosim6BdP2EoynJQHQ1Xpua5VsmG9cOHIHZFMO4TERPTWUDFO6X2A",
-  "refreshToken": "OosqIrTGR1Khmc/Q5CKGvqwSAAE="
+  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTk5MTcsImlhdCI6MTczMzY5OTYxNywiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiMDBlMWFhNGMtN2YxMi00Y2Y4LWIyNGEtYmU1YTM2MjgyNTZjIn0.s9IfgsetfB1HzArmbAz3Rlh2Z4sGA5u2spcB3TT4Q9DFlDFLu9v7R-_kmHfeW1ugEwUnhpOQeja3FDNeHzuMIg",
+  "refreshToken": "AOGqTH8STPiySr5aNiglbKwSAAE="
 }
 ```
 
 Пример ответа
 ```
 {
-  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2MzU3OTIsImlhdCI6MTczMzYzNTQ5MiwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiYmEzNTE3YmYtODVjMy00YmUxLWI5YjktZWNmNTI0ZDdlMjYzIiwic3ViIjoiY2VjMjQyNDctNDk3Zi00OGYyLThhOTMtNGNjZGMyZmRkNjViIn0.lFTzYri_MyGrRrcnQun1l4hpkcZS8b2q_5YGjmWdMOwJDYNNnVH3Bkuz3dmRctYvosIwS_qYDqtXTc-dmdLSAA",
-  "refreshToken": "ujUXv4XDS+G5uez1JNfiY6wSAAE="
+  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTk5ODIsImlhdCI6MTczMzY5OTY4MiwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiMDNjYzA2ZDMtNzc4OS00NjQ2LWIzNzYtOTU1NjU4NmFiNzcxIn0.Xx_9FPHK4nsUyS18F1t5bM56EbLPZ4tE_XWQtvMir6KEqm5GQKRgGoKuflZBJwfsNoKmzxGvEXYZvFGeykkZpQ",
+  "refreshToken": "A8wG03eJRkazdpVWWGq3cawSAAE="
 }
 ```
 
-Реализация [./auth/internal/chi/authcontroller.go#L294](./auth/internal/chi/authcontroller.go#L294)
+Реализация [./auth/internal/chi/authcontroller.go#L302](./auth/internal/chi/authcontroller.go#L302)
 
 
 
@@ -122,11 +131,11 @@ Refresh токен
   - *С учетом лимита на создание bcrypt хеша в 72 символа, максимальное количество байт которое сможет хранить в себе base64 строка (72 * 3/4) 54 байта*
     - *На идентификатор (UUID) уходит 16 байт*
     - *На IP адрес (`netip.Addr`) уходит используется 4 или 16 байт в зависимости от версии IPv4 или IPv6*
-  - *Реализация [./auth/internal/jwt/jwtservice.go#L63](./auth/internal/jwt/jwtservice.go#L63)*
+  - *Реализация [./auth/internal/jwt/jwtservice.go#L62](./auth/internal/jwt/jwtservice.go#L62)*
 - Хранится в базе исключительно в виде bcrypt хеша
   - *Из факта соления через bcrypt следует, что при Refresh операции нельзя найти запись в бд исключительно по Refresh токену*
     - *Значит, нужно дополнительно хранить какой-нибудь идентификатор в Payload*
-  - *Создание экземпляра для хранения в бд [./auth/internal/chi/authcontroller.go#L433](./auth/internal/chi/authcontroller.go#L433)*
+  - *Создание экземпляра для хранения в бд [./auth/internal/chi/authcontroller.go#L471](./auth/internal/chi/authcontroller.go#L471)*
 - Должен быть защищен от изменения на стороне клиента 
   - *Из факта хеширования через bcrypt следует, что подписывать токен (как в JWT) не нужно - проверка целостности осуществляется через bcrypt*
     - *Во время Referesh операции bcrypt хеш передаваемого Refresh токена сравнивается с хешом в базе данных*
@@ -225,7 +234,7 @@ ___
 Body
 ```json
 {
-  "email": "email@example.com",
+  "email": "email2@example.com",
   "password": "Hello1234!"
 }
 ```
@@ -233,8 +242,8 @@ Body
 Example response:
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2Mzc0OTksImlhdCI6MTczMzYzNzE5OSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiMmFlZTgzZTUtMGY5ZS00ODZkLWI5N2UtNjUxZGI5MTY1NzM4Iiwic3ViIjoiODk4YmU3NjctZjY2Zi00OTRkLWJlOWEtYzFiZTg1NTQ4YmI3In0.1WWTw9xC0M_s7zmrASRyRyq7OA84kcMH1uVdtfB0dj1foA_-oF98-RrNc2shGKrNEpGMRJMo0Uisj9EhLgWypA",
-  "refreshToken": "Ku6D5Q+eSG25fmUduRZXOKwSAAE="
+  "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTkyMTQsImlhdCI6MTczMzY5ODkxNCwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiOTBmOWEwZTQtZDU1MC00MjM1LTg0ZTgtM2Q3YmQzNjAyODUwIn0.hbORB2206F0CIlsscxxtY1Pm1AQ2q4yQKghck7HBAjX7lCMUmjtxMKkXQgiLBrVToKWUmobMGs1wj1LLW13leg",
+  "refreshToken": "kPmg5NVQQjWE6D1702AoUKwSAAE="
 }
 ```
 
@@ -403,6 +412,45 @@ Example response:
 
 ___
 
+#### `GET /api/v1/auth/me`
+- Requires header `Authorization: Bearer eyJhb...`
+
+##### Example request 1:
+
+Headers
+```
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTk3NjUsImlhdCI6MTczMzY5OTQ2NSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiZDIwODA4ZWYtYWVlNS00MzI0LTg4ZTYtOGU5OTMyYjM3NmQ0In0.k4EnfkiENdBBk0SMvyjLLqgwgTyEc9YVg6dtyvmnX8A9YIk2-7SQPTzwLzPn3dPKUuVu-PxDa1ul9gq8emZ3LA
+```
+
+
+Example response:
+```json
+{
+  "uuid": "239a0eb8-ca36-4930-b087-81a1d6532005",
+  "email": "emai1l2@example.com"
+}
+```
+
+##### Example request 2:
+
+Headers (bad accessToken)
+```
+Authorization: Bearer BADxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzM2OTk3NjUsImlhdCI6MTczMzY5OTQ2NSwiaXAiOiIxNzIuMTguMC4xIiwianRpIjoiZDIwODA4ZWYtYWVlNS00MzI0LTg4ZTYtOGU5OTMyYjM3NmQ0In0.k4EnfkiENdBBk0SMvyjLLqgwgTyEc9YVg6dtyvmnX8A9YIk2-7SQPTzwLzPn3dPKUuVu-PxDa1ul9gq8emZ3LA
+```
+
+
+Example response:
+```json
+{
+  "code": 403,
+  "message": "error verifying Authorization header: token signature is invalid: signature is invalid"
+}
+```
+
+
+
+___
+
 #### `GET /api/v1/auth/`
 - Requires header `Authorization: Bearer eyJhb...`
 
@@ -418,7 +466,6 @@ Example response:
 ```json
 [
   {
-    "uuid": "898be767-f66f-494d-be9a-c1be85548bb7",
     "email": "email@example.com"
   }
 ]
@@ -510,7 +557,7 @@ Example response:
 ```json
 {
   "code": 404,
-  "message": "user with id 00000000-f66f-494d-be9a-c1be85548bb7 not found: sql: no rows in result set"
+  "message": "user not found: sql: no rows in result set"
 }
 ```
 
@@ -665,7 +712,6 @@ ___
 Example response:
 ```json
 {
-  "uuid": "898be767-f66f-494d-be9a-c1be85548bb7",
   "email": "email@example.com"
 }
 ```
@@ -678,7 +724,7 @@ Example response:
 ```json
 {
   "code": 404,
-  "message": "user with id badbe767-f66f-494d-be9a-c1be85548bb7 not found: sql: no rows in result set"
+  "message": "user not found: sql: no rows in result set"
 }
 ```
 
@@ -859,6 +905,6 @@ Example response:
 ```json
 {
   "code": 404,
-  "message": "error deleting user with id 00000000-f66f-494d-be9a-c1be85548bb7: user not found"
+  "message": "error deleting user: user not found"
 }
 ```

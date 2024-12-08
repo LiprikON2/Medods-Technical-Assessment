@@ -11,6 +11,7 @@ import (
 
 	auth "github.com/medods-technical-assessment"
 	"github.com/medods-technical-assessment/internal/common"
+	"github.com/medods-technical-assessment/pkg/utils"
 )
 
 const accessTokenExpireTime = 5 * time.Minute
@@ -36,7 +37,9 @@ func NewAuthController(service auth.AuthService, validationService auth.Validati
 }
 
 // ref: https://stackoverflow.com/a/68100270
-type CtxUUIDKey struct{}
+type CtxUserUUIDKey struct{}
+
+type CtxAccessTokenKey struct{}
 
 func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 
@@ -52,7 +55,9 @@ func (c *AuthController) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: user}); err != nil {
+	publicUser := user.ToPublic()
+
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: publicUser}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -65,8 +70,11 @@ func (c *AuthController) GetUsers(w http.ResponseWriter, r *http.Request) {
 		NotFoundErrorHandler(w, err)
 		return
 	}
+	publicUsers := utils.MapSlice(users, func(user *auth.User) *auth.PublicUser {
+		return user.ToPublic()
+	})
 
-	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: users}); err != nil {
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: publicUsers}); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -205,7 +213,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		Password: c.cryptoService.HashPassword(userInput.Password),
 	}
 
-	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
+	refreshPayload, accessPayload := c.createPayloads(r)
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -223,9 +231,9 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken := c.makeRefreshToken(refreshTokenStr, user.UUID, accessPayload.Iat)
+	refreshToken := c.makeRefreshToken(refreshTokenStr, accessPayload.Jti, user.UUID, accessPayload.Iat)
 
-	err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID)
+	err = c.service.RevokeRefreshTokensByUser(user.UUID)
 	if err != nil {
 		InternalErrorHandler(w, err)
 		return
@@ -304,22 +312,22 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	accessPayload, err := c.jwtService.GetAccessTokenPayload(refreshInput.AccessToken)
 	if err != nil {
-		// TODO handle errors better
 		BadRequestErrorHandler(w, err)
 		return
 	}
 
-	user, err := c.service.GetUser(accessPayload.Sub)
+	refreshToken, err := c.service.GetActiveRefreshToken(accessPayload.Jti)
 	if err != nil {
 		ForbiddenErrorHandler(w, err)
 		return
 	}
 
-	refreshToken, err := c.service.GetActiveRefreshTokenByUser(user.UUID)
+	user, err := c.service.GetUser(refreshToken.UserUUID)
 	if err != nil {
 		ForbiddenErrorHandler(w, err)
 		return
 	}
+
 	err = c.cryptoService.ComparePasswords(refreshToken.HashedToken, refreshInput.RefreshToken)
 	if err != nil {
 		ForbiddenErrorHandler(w, err)
@@ -337,7 +345,7 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newRefreshPayload, newAccessPayload := c.createPayloads(r, user.UUID)
+	newRefreshPayload, newAccessPayload := c.createPayloads(r)
 
 	if accessPayload.IP != newAccessPayload.IP {
 		c.mailService.Send(user.Email, "New login", fmt.Sprintf(`We noticed you logged in from a new ip address %s. If this was you, there's nothing for you to do right now.`, newAccessPayload.IP))
@@ -349,9 +357,9 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newRefreshToken := c.makeRefreshToken(newRefreshTokenStr, user.UUID, accessPayload.Iat)
+	newRefreshToken := c.makeRefreshToken(newRefreshTokenStr, newAccessPayload.Jti, user.UUID, accessPayload.Iat)
 
-	err = c.service.RevokeRefreshTokensByUser(newRefreshToken.UserUUID)
+	err = c.service.RevokeRefreshTokensByUser(user.UUID)
 	if err != nil {
 		InternalErrorHandler(w, err)
 		return
@@ -374,6 +382,36 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (c *AuthController) GetMe(w http.ResponseWriter, r *http.Request) {
+	accessTokenStr, err := c.getAccessTokenFromContext(r)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+	accessPayload, err := c.jwtService.GetAccessTokenPayload(accessTokenStr)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	refreshToken, err := c.service.GetActiveRefreshToken(accessPayload.Jti)
+	if err != nil {
+		ForbiddenErrorHandler(w, err)
+		return
+	}
+
+	user, err := c.service.GetUser(refreshToken.UserUUID)
+	if err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+
+	if err = c.writeResponse(respParams{w: w, code: http.StatusOK, json: user}); err != nil {
+		InternalErrorHandler(w, err)
+		return
+	}
+}
+
 // Returns string with either IPv4 or IPv6
 func (c *AuthController) getIp(r *http.Request) (string, netip.Addr) {
 	ipStr, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -389,17 +427,17 @@ func (c *AuthController) getIp(r *http.Request) (string, netip.Addr) {
 	return ipStr, ip
 }
 
-func (c *AuthController) createPayloads(r *http.Request, userUUID auth.UUID) (*auth.RefreshPayload, *auth.AccessPayload) {
+func (c *AuthController) createPayloads(r *http.Request) (*auth.RefreshPayload, *auth.AccessPayload) {
 	issuedAt := time.Now()
 	ipStr, ip := c.getIp(r)
 	refreshPayload := &auth.RefreshPayload{Jti: c.uuidService.New(), IP: ip}
-	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Sub: userUUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+	accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 	return refreshPayload, accessPayload
 }
 
 func (c *AuthController) handleSuccessfulAuth(w http.ResponseWriter, r *http.Request, user *auth.User) {
-	refreshPayload, accessPayload := c.createPayloads(r, user.UUID)
+	refreshPayload, accessPayload := c.createPayloads(r)
 
 	accessTokenStr, refreshTokenStr, err := c.jwtService.GenerateTokens(refreshPayload, accessPayload)
 	if err != nil {
@@ -407,9 +445,9 @@ func (c *AuthController) handleSuccessfulAuth(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	refreshToken := c.makeRefreshToken(refreshTokenStr, user.UUID, accessPayload.Iat)
+	refreshToken := c.makeRefreshToken(refreshTokenStr, accessPayload.Jti, user.UUID, accessPayload.Iat)
 
-	if err = c.service.RevokeRefreshTokensByUser(refreshToken.UserUUID); err != nil {
+	if err = c.service.RevokeRefreshTokensByUser(user.UUID); err != nil {
 		InternalErrorHandler(w, err)
 		return
 	}
@@ -430,9 +468,9 @@ func (c *AuthController) handleSuccessfulAuth(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (c *AuthController) makeRefreshToken(refreshTokenStr string, userUUID auth.UUID, Iat int64) *auth.RefreshToken {
+func (c *AuthController) makeRefreshToken(refreshTokenStr string, uuid auth.UUID, userUUID auth.UUID, Iat int64) *auth.RefreshToken {
 	refreshToken := &auth.RefreshToken{
-		UUID:        c.uuidService.New(),
+		UUID:        uuid,
 		HashedToken: c.cryptoService.HashPassword(refreshTokenStr),
 		UserUUID:    userUUID,
 		Active:      true,
@@ -443,12 +481,21 @@ func (c *AuthController) makeRefreshToken(refreshTokenStr string, userUUID auth.
 }
 
 func (c *AuthController) getUserUUIDFromContext(r *http.Request) (auth.UUID, error) {
-	userUUID, ok := r.Context().Value(CtxUUIDKey{}).(auth.UUID)
+	userUUID, ok := r.Context().Value(CtxUserUUIDKey{}).(auth.UUID)
 	if !ok {
 		return auth.UUID{}, fmt.Errorf("failed to get UUID from context")
 	}
 
 	return userUUID, nil
+}
+
+func (c *AuthController) getAccessTokenFromContext(r *http.Request) (string, error) {
+	accessToken, ok := r.Context().Value(CtxAccessTokenKey{}).(string)
+	if !ok {
+		return "", fmt.Errorf("failed to get UUID from context")
+	}
+
+	return accessToken, nil
 }
 
 type respParams struct {

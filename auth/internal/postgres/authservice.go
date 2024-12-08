@@ -63,10 +63,10 @@ func (s *AuthService) GetUser(uuid auth.UUID) (*auth.User, error) {
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user with id %v not found: %w", uuid, err)
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error fetching user with id %v: %w", uuid, err)
+		return nil, fmt.Errorf("error fetching user: %w", err)
 	}
 	return user, err
 }
@@ -187,7 +187,7 @@ func (s *AuthService) UpdateUser(user *auth.User) (*auth.User, error) {
 			}
 		}
 
-		return nil, fmt.Errorf("error updating user with id %v: %w", user.UUID, err)
+		return nil, fmt.Errorf("error updating user: %w", err)
 	}
 
 	return user, nil
@@ -201,7 +201,7 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 	result, err := s.DB.Exec(query, uuid)
 
 	if err != nil {
-		return fmt.Errorf("error deleting user with id %v: %w", uuid, err)
+		return fmt.Errorf("error deleting user: %w", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *AuthService) DeleteUser(uuid auth.UUID) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("error deleting user with id %v: user not found", uuid)
+		return fmt.Errorf("error deleting user: user not found")
 	}
 	return err
 }
@@ -244,7 +244,7 @@ func (s *AuthService) RevokeRefreshTokensByUser(userUUID auth.UUID) error {
 	_, err := s.DB.Exec(query, userUUID)
 
 	if err != nil {
-		return fmt.Errorf("error while revoking refresh tokens for user with %v: %w", userUUID, err)
+		return fmt.Errorf("error while revoking refresh tokens for user: %w", err)
 	}
 
 	return nil
@@ -267,7 +267,31 @@ func (s *AuthService) GetActiveRefreshTokenByUser(userUUID auth.UUID) (*auth.Ref
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("refresh token not found: %w", err)
 	}
-	// TODO this is internal error
+	if err != nil {
+		return nil, fmt.Errorf("error getting refresh token: %w", err)
+	}
+
+	return refreshToken, nil
+}
+
+func (s *AuthService) GetActiveRefreshToken(uuid auth.UUID) (*auth.RefreshToken, error) {
+	refreshToken := &auth.RefreshToken{}
+	query := `
+        SELECT uuid, hashed_token, user_uuid, active, created_at
+        FROM refresh_tokens
+        WHERE uuid = $1 AND
+			  active = true`
+
+	err := s.DB.QueryRow(query, uuid).Scan(
+		&refreshToken.UUID,
+		&refreshToken.HashedToken,
+		&refreshToken.UserUUID,
+		&refreshToken.Active,
+		&refreshToken.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("refresh token not found: %w", err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error getting refresh token: %w", err)
 	}

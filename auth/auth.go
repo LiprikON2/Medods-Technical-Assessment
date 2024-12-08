@@ -19,6 +19,16 @@ type User struct {
 	RefreshTokens []*RefreshToken `json:"-" db:"refresh_tokens"`
 }
 
+type PublicUser struct {
+	Email string `json:"email"`
+}
+
+func (u User) ToPublic() *PublicUser {
+	return &PublicUser{
+		Email: u.Email,
+	}
+}
+
 type CreateUserDto struct {
 	Email    string `json:"email" validate:"required,email,max=254"`
 	Password string `json:"password" validate:"required,password,min=8"`
@@ -57,10 +67,12 @@ type AuthService interface {
 	AddRefreshToken(refreshToken *RefreshToken) error
 	RevokeRefreshTokensByUser(userUUID UUID) error
 	GetActiveRefreshTokenByUser(userUUID UUID) (*RefreshToken, error)
+	GetActiveRefreshToken(uuid UUID) (*RefreshToken, error)
 }
 
 type AuthController interface {
 	GetUser(w http.ResponseWriter, r *http.Request)
+	GetMe(w http.ResponseWriter, r *http.Request)
 	Login(w http.ResponseWriter, r *http.Request)
 	LoginByUUID(w http.ResponseWriter, r *http.Request)
 	GetUsers(w http.ResponseWriter, r *http.Request)
@@ -121,8 +133,6 @@ type AccessPayload struct {
 	Iat int64 `json:"iat"`
 	// Expiration time
 	Exp int64 `json:"exp"`
-	// User's UUID
-	Sub UUID `json:"sub"`
 }
 
 type MailService interface {

@@ -19,7 +19,7 @@ func ValidateUUIDParam(paramName string) func(http.Handler) http.Handler {
 				internalchi.BadRequestErrorHandler(w, fmt.Errorf("invalid UUID format: %w", err))
 				return
 			}
-			ctx := context.WithValue(r.Context(), internalchi.CtxUUIDKey{}, parsedUUID)
+			ctx := context.WithValue(r.Context(), internalchi.CtxUserUUIDKey{}, parsedUUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

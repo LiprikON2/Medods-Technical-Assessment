@@ -1,6 +1,7 @@
 package chi
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,7 +27,9 @@ func Authorization(jwtService auth.JWTService) func(http.Handler) http.Handler {
 				internalchi.ForbiddenErrorHandler(w, fmt.Errorf("error verifying Authorization header: %w", err))
 				return
 			}
-			next.ServeHTTP(w, r)
+
+			ctx := context.WithValue(r.Context(), internalchi.CtxAccessTokenKey{}, accessToken)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 
