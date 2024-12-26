@@ -149,7 +149,6 @@ func TestJWTServiceGenerateTokens(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			userUUID := us.MustParse(tt.input.userUUIDStr)
 			issuedAt := tt.input.issuedAt
 			var accessTokenExpireTime time.Duration
 			if tt.input.expiredAccess {
@@ -163,7 +162,7 @@ func TestJWTServiceGenerateTokens(t *testing.T) {
 			jti := us.MustParse(tt.input.jtiStr)
 
 			refreshPayload := &auth.RefreshPayload{Jti: jti, IP: ip}
-			accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Sub: userUUID, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
+			accessPayload := &auth.AccessPayload{Jti: refreshPayload.Jti, IP: ipStr, Iat: issuedAt.Unix(), Exp: issuedAt.Add(accessTokenExpireTime).Unix()}
 
 			js := NewJWTService("MTIzNA==", us)
 			accessToken, refreshToken, err := js.GenerateTokens(refreshPayload, accessPayload)
@@ -212,7 +211,6 @@ func TestJWTServiceGenerateTokens(t *testing.T) {
 			isValidAccessPayloadDec := strings.Contains(accessPayloadDecoded, fmt.Sprintf("\"exp\":%v", accessPayload.Exp)) &&
 				strings.Contains(accessPayloadDecoded, fmt.Sprintf("\"iat\":%v", accessPayload.Iat)) &&
 				strings.Contains(accessPayloadDecoded, fmt.Sprintf("\"ip\":\"%v\"", accessPayload.IP)) &&
-				strings.Contains(accessPayloadDecoded, fmt.Sprintf("\"sub\":\"%v\"", accessPayload.Sub)) &&
 				strings.Contains(accessPayloadDecoded, fmt.Sprintf("\"jti\":\"%v\"", accessPayload.Jti))
 			if isValidAccessPayloadDec != tt.want.isValidAccessPayloadDec {
 				t.Errorf("got isValidAccessPayloadDec %v, want valid %v", isValidAccessPayloadDec, tt.want.isValidAccessPayloadDec)
